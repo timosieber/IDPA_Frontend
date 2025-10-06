@@ -1,5 +1,5 @@
 import { useAuth } from '../contexts/AuthContext'
-import { Bot, LogOut, Plus, MessageSquare, Settings, BarChart } from 'lucide-react'
+import { Bot, LogOut, Plus, MessageSquare, BarChart, GraduationCap } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
 export default function Dashboard() {
@@ -81,12 +81,34 @@ export default function Dashboard() {
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Konfigurationen</p>
+                <p className="text-sm text-gray-600">Wissensquellen</p>
                 <p className="text-3xl font-bold text-gray-900">0</p>
               </div>
-              <Settings className="h-12 w-12 text-purple-600 opacity-20" />
+              <GraduationCap className="h-12 w-12 text-purple-600 opacity-20" />
             </div>
           </div>
+        </div>
+
+        {/* Quick Actions */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <button
+            onClick={() => navigate('/training')}
+            className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white p-6 rounded-lg hover:shadow-lg transition-all transform hover:-translate-y-1"
+          >
+            <GraduationCap className="h-10 w-10 mb-3" />
+            <h3 className="font-semibold text-lg mb-2">Chatbot trainieren</h3>
+            <p className="text-indigo-100 text-sm">Website scrapen & Wissen hinzufügen</p>
+          </button>
+          <button className="bg-white border-2 border-gray-200 p-6 rounded-lg hover:border-indigo-500 hover:shadow-md transition-all">
+            <Plus className="h-10 w-10 text-indigo-600 mb-3" />
+            <h3 className="font-semibold text-lg mb-2 text-gray-900">Neuer Chatbot</h3>
+            <p className="text-gray-600 text-sm">Chatbot erstellen und konfigurieren</p>
+          </button>
+          <button className="bg-white border-2 border-gray-200 p-6 rounded-lg hover:border-indigo-500 hover:shadow-md transition-all">
+            <BarChart className="h-10 w-10 text-green-600 mb-3" />
+            <h3 className="font-semibold text-lg mb-2 text-gray-900">Analytics</h3>
+            <p className="text-gray-600 text-sm">Performance & Statistiken anzeigen</p>
+          </button>
         </div>
 
         {/* Chatbots Section */}
@@ -110,10 +132,18 @@ export default function Dashboard() {
             <p className="text-gray-600 mb-6">
               Erstellen Sie Ihren ersten Chatbot, um loszulegen
             </p>
-            <button className="inline-flex items-center gap-2 bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition-colors">
-              <Plus className="h-5 w-5" />
-              Ersten Chatbot erstellen
-            </button>
+            <div className="flex gap-4 justify-center">
+              <button className="inline-flex items-center gap-2 bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition-colors">
+                <Plus className="h-5 w-5" />
+                Ersten Chatbot erstellen
+              </button>
+              <button 
+                onClick={() => navigate('/training')}
+                className="inline-flex items-center gap-2 bg-white border-2 border-indigo-600 text-indigo-600 px-6 py-3 rounded-lg hover:bg-indigo-50 transition-colors"
+              >
+                Training starten
+              </button>
+            </div>
           </div>
         </div>
       </main>
