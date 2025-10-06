@@ -1,24 +1,19 @@
+import { useState } from 'react'
 import { Bot, MessageSquare, Zap, Shield } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useNavigate } from 'react-router-dom'
+import { LoginModal } from '../components/LoginModal'
 
 export default function LandingPage() {
-  const { signInWithGoogle, user } = useAuth()
+  const { user } = useAuth()
   const navigate = useNavigate()
-
-  const handleSignIn = async () => {
-    const { error } = await signInWithGoogle()
-    if (error) {
-      console.error('Error signing in:', error.message)
-      alert('Fehler beim Anmelden: ' + error.message)
-    }
-  }
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false)
 
   const handleGetStarted = () => {
     if (user) {
       navigate('/dashboard')
     } else {
-      handleSignIn()
+      setIsLoginModalOpen(true)
     }
   }
 
@@ -41,14 +36,17 @@ export default function LandingPage() {
             </button>
           ) : (
             <button 
-              onClick={handleSignIn}
+              onClick={() => setIsLoginModalOpen(true)}
               className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition-colors"
             >
-              Sign In
+              Anmelden
             </button>
           )}
         </nav>
       </header>
+
+      {/* Login Modal */}
+      <LoginModal isOpen={isLoginModalOpen} onClose={() => setIsLoginModalOpen(false)} />
 
       <main>
         <section className="relative px-6 lg:px-8 py-24 sm:py-32">
@@ -66,7 +64,7 @@ export default function LandingPage() {
                 onClick={handleGetStarted}
                 className="bg-indigo-600 px-6 py-3 text-white font-semibold rounded-lg hover:bg-indigo-700 transition-colors shadow-lg"
               >
-                Get Started Free
+                Kostenlos starten
               </button>
               <button className="text-sm font-semibold leading-6 text-gray-900 hover:text-indigo-600 transition-colors">
                 Watch Demo <span aria-hidden="true">→</span>
@@ -133,7 +131,7 @@ export default function LandingPage() {
                   onClick={handleGetStarted}
                   className="bg-white px-6 py-3 text-indigo-600 font-semibold rounded-lg hover:bg-gray-50 transition-colors shadow-lg"
                 >
-                  Start Building Now
+                  Jetzt loslegen
                 </button>
               </div>
             </div>
