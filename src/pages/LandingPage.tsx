@@ -171,13 +171,18 @@ export default function LandingPage() {
                   <div className="flex-grow">
                     <h3 className="text-xl font-semibold text-gray-900 mb-2">KI trainieren & optimieren</h3>
                     <p className="text-gray-600 mb-4">
-                      Laden Sie Ihre Daten hoch (PDFs, Dokumente, FAQ) und trainieren Sie Ihren Chatbot. 
-                      Die KI lernt automatisch und verbessert sich mit jeder Interaktion.
+                      Geben Sie einfach die URL Ihrer Website ein und unser System scrapt automatisch alle Inhalte. 
+                      Alternativ können Sie auch manuell Dokumente hochladen (PDFs, FAQ, etc.). Die KI lernt 
+                      automatisch aus allen Quellen und verbessert sich mit jeder Interaktion.
                     </p>
                     <div className="flex flex-wrap gap-2">
                       <span className="inline-flex items-center gap-1 px-3 py-1 bg-purple-50 text-purple-700 rounded-full text-sm">
+                        <Globe className="h-4 w-4" />
+                        Automatisches Website-Scraping
+                      </span>
+                      <span className="inline-flex items-center gap-1 px-3 py-1 bg-purple-50 text-purple-700 rounded-full text-sm">
                         <Sparkles className="h-4 w-4" />
-                        Automatisches Lernen
+                        Intelligentes Lernen
                       </span>
                       <span className="inline-flex items-center gap-1 px-3 py-1 bg-purple-50 text-purple-700 rounded-full text-sm">
                         <BarChart3 className="h-4 w-4" />
