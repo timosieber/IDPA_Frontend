@@ -1,79 +1,75 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
-import type { User, Session, AuthError } from '@supabase/supabase-js'
-import { supabase } from '../lib/supabase'
+import type { Models } from 'appwrite'
+import { ID, OAuthProvider } from 'appwrite'
+import { account } from '../lib/appwrite'
+
+type AppwriteUser = Models.User<Models.Preferences>
 
 interface AuthContextType {
-  user: User | null
-  session: Session | null
+  user: AppwriteUser | null
   loading: boolean
-  signInWithGoogle: () => Promise<{ error: AuthError | null }>
-  signInWithEmail: (email: string, password: string) => Promise<{ error: AuthError | null }>
-  signUpWithEmail: (email: string, password: string) => Promise<{ error: AuthError | null }>
+  signInWithGoogle: () => Promise<AuthResult>
+  signInWithEmail: (email: string, password: string) => Promise<AuthResult>
+  signUpWithEmail: (email: string, password: string) => Promise<AuthResult>
   signOut: () => Promise<void>
 }
+
+type AuthResult = { error: string | null }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
-  const [session, setSession] = useState<Session | null>(null)
+  const [user, setUser] = useState<AppwriteUser | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
-      setUser(session?.user ?? null)
-      setLoading(false)
-    })
-
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session)
-      setUser(session?.user ?? null)
-    })
-
-    return () => subscription.unsubscribe()
+    account
+      .get()
+      .then((currentUser) => setUser(currentUser))
+      .catch(() => setUser(null))
+      .finally(() => setLoading(false))
   }, [])
 
-  const signInWithGoogle = async () => {
-    return await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/dashboard`
-      }
-    })
+  const signInWithGoogle = async (): Promise<AuthResult> => {
+    try {
+      await account.createOAuth2Session(OAuthProvider.Google, `${window.location.origin}/dashboard`, window.location.origin)
+      return { error: null }
+    } catch (error) {
+      return { error: getErrorMessage(error) }
+    }
   }
 
-  const signInWithEmail = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
-    return { error }
+  const signInWithEmail = async (email: string, password: string): Promise<AuthResult> => {
+    try {
+      await account.createEmailPasswordSession(email, password)
+      const currentUser = await account.get()
+      setUser(currentUser)
+      return { error: null }
+    } catch (error) {
+      return { error: getErrorMessage(error) }
+    }
   }
 
-  const signUpWithEmail = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/dashboard`
-      }
-    })
-    return { error }
+  const signUpWithEmail = async (email: string, password: string): Promise<AuthResult> => {
+    try {
+      await account.create(ID.unique(), email, password, email.split('@')[0])
+      await account.createEmailPasswordSession(email, password)
+      const currentUser = await account.get()
+      setUser(currentUser)
+      return { error: null }
+    } catch (error) {
+      return { error: getErrorMessage(error) }
+    }
   }
 
   const signOut = async () => {
-    await supabase.auth.signOut()
+    await account.deleteSession('current')
+    setUser(null)
   }
 
-  const value = {
+  const value: AuthContextType = {
     user,
-    session,
     loading,
     signInWithGoogle,
     signInWithEmail,
@@ -90,4 +86,11 @@ export function useAuth() {
     throw new Error('useAuth must be used within an AuthProvider')
   }
   return context
+}
+
+function getErrorMessage(error: unknown) {
+  if (error instanceof Error) {
+    return error.message
+  }
+  return 'Unbekannter Fehler'
 }

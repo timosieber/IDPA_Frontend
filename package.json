@@ -13,9 +13,9 @@
   "dependencies": {
     "@headlessui/react": "^2.2.7",
     "@heroicons/react": "^2.2.0",
-    "@supabase/supabase-js": "^2.74.0",
     "@tailwindcss/postcss": "^4.1.13",
     "@tailwindcss/typography": "^0.5.16",
+    "appwrite": "^21.4.0",
     "clsx": "^2.1.1",
     "lucide-react": "^0.543.0",
     "react": "^19.1.1",

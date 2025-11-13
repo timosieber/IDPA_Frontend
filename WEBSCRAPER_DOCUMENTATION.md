@@ -243,18 +243,14 @@ User Request → API → Job Queue (Bull/BullMQ) → Worker Processes → Databa
 // worker.ts
 import Queue from 'bull'
 import puppeteer from 'puppeteer'
-import { createClient } from '@supabase/supabase-js'
+import { persistSourceStatus, insertScrapedContent } from './persistence'
 
 const scrapeQueue = new Queue('website-scraping', process.env.REDIS_URL)
 
 scrapeQueue.process(async (job) => {
   const { sourceId, url, userId } = job.data
   
-  // Update status to processing
-  await supabase
-    .from('knowledge_sources')
-    .update({ status: 'processing', last_updated: new Date() })
-    .eq('id', sourceId)
+  await persistSourceStatus(sourceId, { status: 'processing', lastUpdated: new Date(), userId })
 
   try {
     const browser = await puppeteer.launch()
@@ -265,41 +261,31 @@ scrapeQueue.process(async (job) => {
     
     // Save scraped content
     for (const result of results) {
-      await supabase
-        .from('scraped_content')
-        .insert({
-          source_id: sourceId,
-          url: result.url,
-          title: result.title,
-          content: result.content,
-          metadata: result.metadata
-        })
+      await insertScrapedContent({
+        sourceId,
+        url: result.url,
+        title: result.title,
+        content: result.content,
+        metadata: result.metadata,
+      })
     }
     
     // Generate embeddings for vector search
     await generateEmbeddings(sourceId)
     
-    // Update status to completed
-    await supabase
-      .from('knowledge_sources')
-      .update({ 
-        status: 'completed', 
-        metadata: { pageCount: results.length },
-        last_updated: new Date() 
-      })
-      .eq('id', sourceId)
+    await persistSourceStatus(sourceId, {
+      status: 'completed',
+      metadata: { pageCount: results.length },
+      lastUpdated: new Date(),
+    })
     
     await browser.close()
   } catch (error) {
-    // Update status to error
-    await supabase
-      .from('knowledge_sources')
-      .update({ 
-        status: 'error', 
-        error_message: error.message,
-        last_updated: new Date() 
-      })
-      .eq('id', sourceId)
+    await persistSourceStatus(sourceId, {
+      status: 'error',
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+      lastUpdated: new Date(),
+    })
     
     throw error
   }
@@ -314,30 +300,22 @@ Um dem Chatbot zu ermöglichen, relevante Informationen zu finden:
 
 ```typescript
 import { OpenAI } from 'openai'
+import { loadScrapedContent, storeEmbedding } from './persistence'
 
 async function generateEmbeddings(sourceId: string) {
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
-  
-  // Hole alle Inhalte für diese Source
-  const { data: contents } = await supabase
-    .from('scraped_content')
-    .select('id, content')
-    .eq('source_id', sourceId)
+  const contents = await loadScrapedContent(sourceId)
   
   for (const content of contents) {
-    // Generiere Embedding
     const response = await openai.embeddings.create({
       model: 'text-embedding-3-small',
-      input: content.content
+      input: content.body,
     })
     
-    const embedding = response.data[0].embedding
-    
-    // Speichere Embedding
-    await supabase
-      .from('scraped_content')
-      .update({ embedding })
-      .eq('id', content.id)
+    await storeEmbedding({
+      contentId: content.id,
+      embedding: response.data[0].embedding,
+    })
   }
 }
 ```
@@ -346,24 +324,20 @@ async function generateEmbeddings(sourceId: string) {
 
 ```typescript
 async function findRelevantContent(query: string, chatbotId: string, limit = 5) {
-  // Generiere Embedding für die Frage
   const queryEmbedding = await openai.embeddings.create({
     model: 'text-embedding-3-small',
     input: query
   })
   
-  // Suche ähnliche Inhalte
-  const { data } = await supabase.rpc('match_documents', {
-    query_embedding: queryEmbedding.data[0].embedding,
-    match_threshold: 0.7,
-    match_count: limit,
-    filter_chatbot_id: chatbotId
+  return await vectorStore.matchDocuments({
+    embedding: queryEmbedding.data[0].embedding,
+    threshold: 0.7,
+    limit,
+    chatbotId
   })
-  
-  return data
 }
 
-// SQL Funktion in Supabase
+// Beispielhafte SQL-Funktion (Postgres + pgvector)
 CREATE OR REPLACE FUNCTION match_documents(
   query_embedding VECTOR(1536),
   match_threshold FLOAT,
@@ -464,4 +438,4 @@ async function generateChatbotResponse(message: string, chatbotId: string) {
 Bei Fragen zur Implementierung oder Problemen:
 - GitHub Issues: [Repository Link]
 - Dokumentation: Dieses Dokument
-- Supabase Docs: https://supabase.com/docs
+- OpenAI API Docs: https://platform.openai.com/docs

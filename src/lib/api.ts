@@ -1,0 +1,74 @@
+import { account } from './appwrite'
+
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000'
+
+export interface Chatbot {
+  id: string
+  userId: string
+  name: string
+  description?: string | null
+  allowedDomains: string[]
+  theme?: Record<string, unknown> | null
+  model?: string | null
+  status: 'ACTIVE' | 'DRAFT' | 'PAUSED' | 'ARCHIVED'
+  createdAt: string
+  updatedAt: string
+}
+
+async function authHeaders() {
+  const { jwt } = await account.createJWT()
+  return {
+    Authorization: `Bearer ${jwt}`,
+    'Content-Type': 'application/json',
+  }
+}
+
+export async function listChatbots(): Promise<Chatbot[]> {
+  const res = await fetch(`${BACKEND_URL}/api/chatbots`, {
+    headers: await authHeaders(),
+    credentials: 'include',
+  })
+  if (!res.ok) throw new Error(`Fehler beim Laden der Chatbots (${res.status})`)
+  return res.json()
+}
+
+export async function createChatbot(input: { name: string; description?: string; allowedDomains: string[]; model?: string; status?: Chatbot['status'] }): Promise<Chatbot> {
+  const res = await fetch(`${BACKEND_URL}/api/chatbots`, {
+    method: 'POST',
+    headers: await authHeaders(),
+    body: JSON.stringify(input),
+    credentials: 'include',
+  })
+  if (!res.ok) throw new Error(`Fehler beim Erstellen des Chatbots (${res.status})`)
+  return res.json()
+}
+
+export async function deleteChatbot(id: string): Promise<void> {
+  const res = await fetch(`${BACKEND_URL}/api/chatbots/${id}`, {
+    method: 'DELETE',
+    headers: await authHeaders(),
+    credentials: 'include',
+  })
+  if (!res.ok) throw new Error(`Fehler beim Löschen des Chatbots (${res.status})`)
+}
+
+export async function createSession(chatbotId: string): Promise<{ sessionId: string; token: string; expiresAt: string }> {
+  const res = await fetch(`${BACKEND_URL}/api/chat/sessions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chatbotId }),
+  })
+  if (!res.ok) throw new Error(`Fehler beim Erstellen der Session (${res.status})`)
+  return res.json()
+}
+
+export async function sendMessage(params: { sessionId: string; token: string; message: string }): Promise<{ sessionId: string; answer: string; context?: unknown } > {
+  const res = await fetch(`${BACKEND_URL}/api/chat/messages`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${params.token}` },
+    body: JSON.stringify({ sessionId: params.sessionId, message: params.message }),
+  })
+  if (!res.ok) throw new Error(`Fehler beim Senden der Nachricht (${res.status})`)
+  return res.json()
+}
+

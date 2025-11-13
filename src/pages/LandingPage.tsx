@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Bot, MessageSquare, Zap, Shield, CheckCircle, ArrowRight, Users, Sparkles, Code, Globe, BarChart3, Settings } from 'lucide-react'
-import { useAuth } from '../contexts/AuthContext'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../contexts/AuthContext'
 import { LoginModal } from '../components/LoginModal'
 
 export default function LandingPage() {
@@ -29,14 +29,22 @@ export default function LandingPage() {
           <a href="#how-it-works" className="text-sm font-semibold leading-6 text-gray-900 hover:text-indigo-600 transition-colors">So funktioniert's</a>
           <a href="#use-cases" className="text-sm font-semibold leading-6 text-gray-900 hover:text-indigo-600 transition-colors">Anwendungsfälle</a>
           {user ? (
-            <button 
-              onClick={() => navigate('/dashboard')}
-              className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition-colors"
-            >
-              Dashboard
-            </button>
+            <>
+              <button
+                onClick={() => navigate('/dashboard')}
+                className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition-colors"
+              >
+                Dashboard
+              </button>
+              <button
+                onClick={() => navigate('/training')}
+                className="bg-white border border-indigo-600 text-indigo-600 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-50 transition-colors"
+              >
+                Training
+              </button>
+            </>
           ) : (
-            <button 
+            <button
               onClick={() => setIsLoginModalOpen(true)}
               className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition-colors"
             >
@@ -46,7 +54,6 @@ export default function LandingPage() {
         </nav>
       </header>
 
-      {/* Login Modal */}
       <LoginModal isOpen={isLoginModalOpen} onClose={() => setIsLoginModalOpen(false)} />
 
       <main>
