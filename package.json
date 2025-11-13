@@ -8,7 +8,8 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "start": "vite preview --host 0.0.0.0 --port $PORT"
+    "serve": "node server/serve.mjs",
+    "start": "node server/serve.mjs"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.7",

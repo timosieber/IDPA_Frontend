@@ -75,9 +75,12 @@ Falls Sie ein eigenes Appwrite-Projekt verwenden möchten:
 ## Deployment
 
 ### Railway
-This project is configured for deployment on Railway:
+Dieses Frontend enthält einen eingebauten Express-Proxy, damit das Backend intern (Railway internal) erreichbar bleibt und das Frontend die API unter `/api/*` bereitstellt.
 
-1. Connect your GitHub repository to Railway
-2. No environment variables are required. The build works out-of-the-box.
-3. Railway (or any static hosting provider) erkennt die Vite-Konfiguration automatisch.
-4. Deploy und teile den statischen Build.
+1. Verbinde das GitHub-Repo mit Railway
+2. Setze Environment Variablen im Frontend-Service:
+   - `VITE_APPWRITE_PROJECT_ID`
+   - `VITE_APPWRITE_API_ENDPOINT`
+   - `INTERNAL_BACKEND_URL` (z. B. `http://idpa_backend.railway.internal:4000`)
+3. Start Command des Frontends: `npm start` (läuft `server/serve.mjs`)
+4. Das Frontend servt `dist/` und proxyt `/api/*` an `INTERNAL_BACKEND_URL`
