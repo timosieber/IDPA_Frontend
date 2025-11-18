@@ -1,6 +1,9 @@
 import { account } from './appwrite'
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000'
+// In Development, call the backend directly via VITE_BACKEND_URL (e.g. http://localhost:4000)
+// In Production (Railway), use same-origin relative /api path (served by the proxy server)
+const isDev = import.meta.env.DEV
+const BACKEND_URL = isDev ? (import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000') : ''
 
 export interface Chatbot {
   id: string
@@ -71,4 +74,3 @@ export async function sendMessage(params: { sessionId: string; token: string; me
   if (!res.ok) throw new Error(`Fehler beim Senden der Nachricht (${res.status})`)
   return res.json()
 }
-

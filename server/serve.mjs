@@ -61,8 +61,10 @@ app.use('/api', async (req, res) => {
 const distDir = path.resolve(__dirname, '..', 'dist')
 app.use(express.static(distDir, { index: false }))
 
-// SPA fallback to index.html
-app.get('*', (req, res) => {
+// SPA fallback for all non-API GET requests
+app.use((req, res, next) => {
+  if (req.method !== 'GET') return next()
+  if (req.path.startsWith('/api')) return next()
   res.sendFile(path.join(distDir, 'index.html'))
 })
 
@@ -70,4 +72,3 @@ app.listen(PORT, () => {
   // eslint-disable-next-line no-console
   console.log(`Frontend server listening on :${PORT} (proxy -> ${INTERNAL_BACKEND_URL})`)
 })
-
