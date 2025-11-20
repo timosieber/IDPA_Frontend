@@ -44,6 +44,12 @@ export default function Dashboard() {
   // Background Scraping State
   const [scrapingBots, setScrapingBots] = useState<Set<string>>(new Set())
 
+  // Helper to show prep state while Scraper/Sources noch arbeiten
+  const isBotPreparing = (bot: Chatbot) => {
+    const hasPendingSources = selectedBot?.id === bot.id && botSources.some((s) => s.status === 'PENDING')
+    return scrapingBots.has(bot.id) || bot.status === 'DRAFT' || hasPendingSources
+  }
+
   const embedBase = useMemo(() => window.location.origin, [])
   const snippet = useMemo(() => {
     if (!selectedBot) return ''
@@ -359,34 +365,34 @@ export default function Dashboard() {
                         <div className="flex-1">
                           <div className="flex items-center gap-3">
                             <div className="font-medium text-gray-900">{bot.name}</div>
-                            {scrapingBots.has(bot.id) ? (
-                              <span className="px-3 py-1 text-xs font-semibold rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white animate-pulse flex items-center gap-1.5 shadow-lg">
+                            <span className={`px-3 py-1 text-xs font-semibold rounded-full flex items-center gap-1.5 shadow ${
+                              isBotPreparing(bot)
+                                ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white animate-pulse'
+                                : bot.status === 'ACTIVE'
+                                  ? 'bg-green-100 text-green-800'
+                                  : bot.status === 'DRAFT'
+                                    ? 'bg-gray-100 text-gray-800'
+                                    : 'bg-yellow-100 text-yellow-800'
+                            }`}>
+                              {isBotPreparing(bot) && (
                                 <svg className="h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                 </svg>
-                                Website wird gescraped...
-                              </span>
-                            ) : (
-                              <span className={`px-2 py-1 text-xs rounded-full ${
-                                bot.status === 'ACTIVE' ? 'bg-green-100 text-green-800' :
-                                bot.status === 'DRAFT' ? 'bg-gray-100 text-gray-800' :
-                                'bg-yellow-100 text-yellow-800'
-                              }`}>
-                                {bot.status}
-                              </span>
-                            )}
+                              )}
+                              {isBotPreparing(bot) ? 'Wird vorbereitet' : bot.status}
+                            </span>
                           </div>
                           <div className="text-sm text-gray-500 mt-1">
                             <Globe className="inline h-3 w-3 mr-1" />
                             {bot.allowedDomains.length > 0 ? bot.allowedDomains.join(', ') : 'Keine Domains'}
                           </div>
-                          {scrapingBots.has(bot.id) && (
+                          {isBotPreparing(bot) && (
                             <div className="mt-2">
                               <div className="w-full bg-gray-200 rounded-full h-1.5">
                                 <div className="bg-gradient-to-r from-blue-500 to-indigo-600 h-1.5 rounded-full animate-pulse" style={{ width: '100%' }}></div>
                               </div>
-                              <p className="text-xs text-blue-600 mt-1 font-medium">Analysiere Website und erstelle Wissensbasis...</p>
+                              <p className="text-xs text-blue-600 mt-1 font-medium">Scraper läuft – wir bereiten deinen Chatbot für neue Antworten vor.</p>
                             </div>
                           )}
                         </div>
@@ -444,6 +450,20 @@ export default function Dashboard() {
                 </div>
               ) : activeTab === 'details' ? (
                 <div className="space-y-6">
+                  {isBotPreparing(selectedBot) && (
+                    <div className="rounded-xl bg-gradient-to-r from-indigo-500 via-blue-500 to-purple-500 text-white p-4 flex items-start gap-3 shadow-lg">
+                      <div className="h-10 w-10 rounded-full border-2 border-white/60 flex items-center justify-center">
+                        <svg className="h-5 w-5 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                      </div>
+                      <div>
+                        <p className="font-semibold">Chatbot wird vorbereitet</p>
+                        <p className="text-sm text-indigo-50">Der Scraper verarbeitet gerade deine Website. Das Chatten ist in Kürze möglich.</p>
+                      </div>
+                    </div>
+                  )}
                   {/* Info */}
                   <div>
                     <h3 className="font-semibold text-gray-900 mb-2">{selectedBot.name}</h3>
