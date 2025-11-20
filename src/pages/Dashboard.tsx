@@ -1,8 +1,8 @@
-import { Bot, LogOut, Plus, MessageSquare, BarChart, GraduationCap, Copy, Trash2, Globe, CheckCircle, Clock, XCircle } from 'lucide-react'
+import { Bot, LogOut, Plus, MessageSquare, BarChart, GraduationCap, Copy, Trash2, Globe, CheckCircle, Clock, XCircle, Settings, Palette } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useEffect, useMemo, useState } from 'react'
-import { createChatbot, deleteChatbot, listChatbots, scrapeWebsite, listKnowledgeSources, type Chatbot, type KnowledgeSource } from '../lib/api'
+import { createChatbot, deleteChatbot, listChatbots, scrapeWebsite, listKnowledgeSources, updateChatbot, type Chatbot, type KnowledgeSource } from '../lib/api'
 
 export default function Dashboard() {
   const navigate = useNavigate()
@@ -32,6 +32,15 @@ export default function Dashboard() {
   const [selectedBot, setSelectedBot] = useState<Chatbot | null>(null)
   const [botSources, setBotSources] = useState<KnowledgeSource[]>([])
   const [loadingSources, setLoadingSources] = useState(false)
+  const [activeTab, setActiveTab] = useState<'details' | 'settings'>('details')
+
+  // Settings Form State
+  const [editName, setEditName] = useState('')
+  const [editDescription, setEditDescription] = useState('')
+  const [editSystemPrompt, setEditSystemPrompt] = useState('')
+  const [editLogoUrl, setEditLogoUrl] = useState('')
+  const [editPrimaryColor, setEditPrimaryColor] = useState('#4F46E5')
+  const [saving, setSaving] = useState(false)
 
   const embedBase = useMemo(() => window.location.origin, [])
   const snippet = useMemo(() => {
@@ -73,6 +82,13 @@ export default function Dashboard() {
   useEffect(() => {
     if (selectedBot) {
       loadBotSources(selectedBot.id)
+      setActiveTab('details')
+      // Initialize form with current values
+      setEditName(selectedBot.name)
+      setEditDescription(selectedBot.description || '')
+      setEditSystemPrompt(selectedBot.systemPrompt || '')
+      setEditLogoUrl(selectedBot.logoUrl || '')
+      setEditPrimaryColor((selectedBot.theme as any)?.primaryColor || '#4F46E5')
     }
   }, [selectedBot])
 
@@ -151,6 +167,29 @@ export default function Dashboard() {
       setSuccess('Chatbot gelöscht')
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Unbekannter Fehler')
+    }
+  }
+
+  const handleSaveSettings = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedBot) return
+    setSaving(true)
+    setError(null)
+    try {
+      const updated = await updateChatbot(selectedBot.id, {
+        name: editName,
+        description: editDescription || null,
+        systemPrompt: editSystemPrompt || null,
+        logoUrl: editLogoUrl || null,
+        theme: { primaryColor: editPrimaryColor },
+      })
+      setSelectedBot(updated)
+      await load()
+      setSuccess('Einstellungen gespeichert!')
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Fehler beim Speichern')
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -334,7 +373,34 @@ export default function Dashboard() {
           {/* Details Panel */}
           <div className="bg-white rounded-lg shadow">
             <div className="p-6 border-b border-gray-200">
-              <h2 className="text-xl font-semibold text-gray-900">Details</h2>
+              {selectedBot ? (
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setActiveTab('details')}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+                      activeTab === 'details'
+                        ? 'bg-indigo-100 text-indigo-700'
+                        : 'text-gray-600 hover:bg-gray-100'
+                    }`}
+                  >
+                    <MessageSquare className="h-4 w-4" />
+                    Details
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('settings')}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+                      activeTab === 'settings'
+                        ? 'bg-indigo-100 text-indigo-700'
+                        : 'text-gray-600 hover:bg-gray-100'
+                    }`}
+                  >
+                    <Settings className="h-4 w-4" />
+                    Einstellungen
+                  </button>
+                </div>
+              ) : (
+                <h2 className="text-xl font-semibold text-gray-900">Details</h2>
+              )}
             </div>
             <div className="p-6">
               {!selectedBot ? (
@@ -342,7 +408,7 @@ export default function Dashboard() {
                   <MessageSquare className="h-12 w-12 mx-auto mb-3 text-gray-400" />
                   <p>Wählen Sie einen Chatbot aus</p>
                 </div>
-              ) : (
+              ) : activeTab === 'details' ? (
                 <div className="space-y-6">
                   {/* Info */}
                   <div>
@@ -391,6 +457,93 @@ export default function Dashboard() {
                     </div>
                   </div>
                 </div>
+              ) : (
+                <form onSubmit={handleSaveSettings} className="space-y-4">
+                  {/* Bot Name */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Bot Name</label>
+                    <input
+                      type="text"
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      required
+                    />
+                  </div>
+
+                  {/* Description */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Beschreibung</label>
+                    <textarea
+                      value={editDescription}
+                      onChange={(e) => setEditDescription(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      rows={2}
+                      placeholder="Optionale Beschreibung..."
+                    />
+                  </div>
+
+                  {/* Logo URL */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Logo URL</label>
+                    <input
+                      type="url"
+                      value={editLogoUrl}
+                      onChange={(e) => setEditLogoUrl(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      placeholder="https://example.com/logo.png"
+                    />
+                  </div>
+
+                  {/* Primary Color */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <Palette className="inline h-4 w-4 mr-1" />
+                      Primärfarbe
+                    </label>
+                    <div className="flex gap-2 items-center">
+                      <input
+                        type="color"
+                        value={editPrimaryColor}
+                        onChange={(e) => setEditPrimaryColor(e.target.value)}
+                        className="h-10 w-20 border border-gray-300 rounded cursor-pointer"
+                      />
+                      <input
+                        type="text"
+                        value={editPrimaryColor}
+                        onChange={(e) => setEditPrimaryColor(e.target.value)}
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        placeholder="#4F46E5"
+                      />
+                    </div>
+                  </div>
+
+                  {/* System Prompt */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Custom System Prompt (Optional)
+                    </label>
+                    <textarea
+                      value={editSystemPrompt}
+                      onChange={(e) => setEditSystemPrompt(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent font-mono text-sm"
+                      rows={6}
+                      placeholder="Leer lassen für Standard-Prompt. Beispiel:&#10;Du bist ein Support-Bot für TrendingMedia.&#10;- Sprich aus Unternehmensperspektive (wir, uns)&#10;- Halte Antworten kurz und präzise&#10;- Nutze das search_knowledge_base Tool"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Falls leer, wird der Standard-Prompt verwendet (Unternehmensperspektive, kurze Antworten)
+                    </p>
+                  </div>
+
+                  {/* Save Button */}
+                  <button
+                    type="submit"
+                    disabled={saving}
+                    className="w-full bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                  >
+                    {saving ? 'Speichern...' : 'Einstellungen speichern'}
+                  </button>
+                </form>
               )}
             </div>
           </div>
