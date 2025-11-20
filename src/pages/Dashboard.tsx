@@ -24,7 +24,6 @@ export default function Dashboard() {
   const [name, setName] = useState('')
   const [websiteUrl, setWebsiteUrl] = useState('')
   const [creating, setCreating] = useState(false)
-  const [scraping, setScraping] = useState(false)
   const [newChatbot, setNewChatbot] = useState<Chatbot | null>(null)
   const [scrapeResult, setScrapeResult] = useState<{ sources: number; pages: number } | null>(null)
 
