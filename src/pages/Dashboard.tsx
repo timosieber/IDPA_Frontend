@@ -178,9 +178,9 @@ export default function Dashboard() {
     try {
       const updated = await updateChatbot(selectedBot.id, {
         name: editName,
-        description: editDescription || null,
-        systemPrompt: editSystemPrompt || null,
-        logoUrl: editLogoUrl || null,
+        description: editDescription || undefined,
+        systemPrompt: editSystemPrompt || undefined,
+        logoUrl: editLogoUrl || undefined,
         theme: { primaryColor: editPrimaryColor },
       })
       setSelectedBot(updated)
