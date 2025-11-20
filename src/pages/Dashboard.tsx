@@ -22,7 +22,6 @@ export default function Dashboard() {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [step, setStep] = useState<'details' | 'scraping' | 'done'>('details')
   const [name, setName] = useState('')
-  const [domains, setDomains] = useState('')
   const [websiteUrl, setWebsiteUrl] = useState('')
   const [creating, setCreating] = useState(false)
   const [scraping, setScraping] = useState(false)
@@ -81,7 +80,6 @@ export default function Dashboard() {
     setShowCreateModal(true)
     setStep('details')
     setName('')
-    setDomains('')
     setWebsiteUrl('')
     setNewChatbot(null)
     setScrapeResult(null)
@@ -96,7 +94,7 @@ export default function Dashboard() {
     try {
       const bot = await createChatbot({
         name,
-        allowedDomains: domains.split(',').map((d) => d.trim()).filter(Boolean),
+        allowedDomains: [], // Keine Einschränkung, alle Domains erlaubt
         status: 'ACTIVE',
       })
       setNewChatbot(bot)
@@ -426,19 +424,6 @@ export default function Dashboard() {
                       placeholder="z.B. Kundenservice Bot"
                       required
                     />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Erlaubte Domains
-                    </label>
-                    <input
-                      type="text"
-                      value={domains}
-                      onChange={(e) => setDomains(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                      placeholder="example.com, shop.example.com"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">Kommagetrennt. Leer = Alle Domains erlaubt</p>
                   </div>
                   <div className="flex gap-3">
                     <button
