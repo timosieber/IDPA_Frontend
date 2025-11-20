@@ -42,6 +42,9 @@ export default function Dashboard() {
   const [editPrimaryColor, setEditPrimaryColor] = useState('#4F46E5')
   const [saving, setSaving] = useState(false)
 
+  // Background Scraping State
+  const [scrapingBots, setScrapingBots] = useState<Set<string>>(new Set())
+
   const embedBase = useMemo(() => window.location.origin, [])
   const snippet = useMemo(() => {
     if (!selectedBot) return ''
@@ -126,8 +129,14 @@ export default function Dashboard() {
   const handleScrapeWebsite = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newChatbot) return
-    setScraping(true)
-    setError(null)
+
+    // Modal sofort schließen und Bot zur Scraping-Liste hinzufügen
+    setShowCreateModal(false)
+    setScrapingBots(prev => new Set(prev).add(newChatbot.id))
+    setSelectedBot(newChatbot)
+    setSuccess(`Chatbot "${newChatbot.name}" wird erstellt - Scraping läuft im Hintergrund...`)
+
+    // Scraping im Hintergrund durchführen
     try {
       const result = await scrapeWebsite({
         chatbotId: newChatbot.id,
@@ -135,14 +144,22 @@ export default function Dashboard() {
         maxDepth: 2,
         maxPages: 50,
       })
-      setScrapeResult({ sources: result.sources.length, pages: result.pagesScanned })
-      setStep('done')
-      setSuccess(`${result.pagesScanned} Seiten gescraped, ${result.sources.length} Wissensquellen erstellt!`)
+
+      setScrapingBots(prev => {
+        const updated = new Set(prev)
+        updated.delete(newChatbot.id)
+        return updated
+      })
+
+      setSuccess(`✅ Chatbot "${newChatbot.name}" fertig: ${result.pagesScanned} Seiten gescraped, ${result.sources.length} Quellen erstellt!`)
       await load()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Scraping fehlgeschlagen')
-    } finally {
-      setScraping(false)
+      setScrapingBots(prev => {
+        const updated = new Set(prev)
+        updated.delete(newChatbot.id)
+        return updated
+      })
+      setError(`Scraping für "${newChatbot.name}" fehlgeschlagen: ${e instanceof Error ? e.message : 'Unbekannter Fehler'}`)
     }
   }
 
@@ -343,13 +360,20 @@ export default function Dashboard() {
                         <div className="flex-1">
                           <div className="flex items-center gap-3">
                             <div className="font-medium text-gray-900">{bot.name}</div>
-                            <span className={`px-2 py-1 text-xs rounded-full ${
-                              bot.status === 'ACTIVE' ? 'bg-green-100 text-green-800' :
-                              bot.status === 'DRAFT' ? 'bg-gray-100 text-gray-800' :
-                              'bg-yellow-100 text-yellow-800'
-                            }`}>
-                              {bot.status}
-                            </span>
+                            {scrapingBots.has(bot.id) ? (
+                              <span className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800 animate-pulse flex items-center gap-1">
+                                <Clock className="h-3 w-3 animate-spin" />
+                                Scraping läuft...
+                              </span>
+                            ) : (
+                              <span className={`px-2 py-1 text-xs rounded-full ${
+                                bot.status === 'ACTIVE' ? 'bg-green-100 text-green-800' :
+                                bot.status === 'DRAFT' ? 'bg-gray-100 text-gray-800' :
+                                'bg-yellow-100 text-yellow-800'
+                              }`}>
+                                {bot.status}
+                              </span>
+                            )}
                           </div>
                           <div className="text-sm text-gray-500 mt-1">
                             <Globe className="inline h-3 w-3 mr-1" />
