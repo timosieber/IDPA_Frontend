@@ -7,25 +7,30 @@ const BACKEND_URL = isDev ? (import.meta.env.VITE_BACKEND_URL || 'http://localho
 
 let cachedJwt: string | null = null
 let jwtExpiration = 0
-let inflightJwt: Promise<string> | null = null
+let activeTokenRequest: Promise<string> | null = null
 
-async function getJwt(): Promise<string> {
+async function getValidToken(): Promise<string> {
   const now = Date.now()
   if (cachedJwt && now < jwtExpiration) {
     return cachedJwt
   }
-  if (inflightJwt) return inflightJwt
-  inflightJwt = account
-    .createJWT()
-    .then(({ jwt }) => {
+
+  if (activeTokenRequest) {
+    return activeTokenRequest
+  }
+
+  activeTokenRequest = (async () => {
+    try {
+      const { jwt } = await account.createJWT()
       cachedJwt = jwt
-      jwtExpiration = Date.now() + 10 * 60 * 1000 // 10 Minuten Cache, unterhalb der Appwrite-Limit
+      jwtExpiration = Date.now() + 10 * 60 * 1000
       return jwt
-    })
-    .finally(() => {
-      inflightJwt = null
-    })
-  return inflightJwt
+    } finally {
+      activeTokenRequest = null
+    }
+  })()
+
+  return activeTokenRequest
 }
 
 export interface Chatbot {
@@ -44,7 +49,7 @@ export interface Chatbot {
 }
 
 async function authHeaders() {
-  const jwt = await getJwt()
+  const jwt = await getValidToken()
   return {
     Authorization: `Bearer ${jwt}`,
     'Content-Type': 'application/json',
