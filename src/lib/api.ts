@@ -5,20 +5,21 @@ import { account } from './appwrite'
 const isDev = import.meta.env.DEV
 const BACKEND_URL = isDev ? (import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000') : ''
 
-let cachedJwt: { token: string; expiresAt: number } | null = null
+let cachedJwt: string | null = null
+let jwtExpiration = 0
 let inflightJwt: Promise<string> | null = null
 
 async function getJwt(): Promise<string> {
   const now = Date.now()
-  if (cachedJwt && cachedJwt.expiresAt > now + 60_000) {
-    return cachedJwt.token
+  if (cachedJwt && now < jwtExpiration) {
+    return cachedJwt
   }
   if (inflightJwt) return inflightJwt
   inflightJwt = account
     .createJWT()
     .then(({ jwt }) => {
-      // Appwrite JWTs sind kurzlebig; wir cachen für 10 Minuten
-      cachedJwt = { token: jwt, expiresAt: Date.now() + 10 * 60 * 1000 }
+      cachedJwt = jwt
+      jwtExpiration = Date.now() + 10 * 60 * 1000 // 10 Minuten Cache, unterhalb der Appwrite-Limit
       return jwt
     })
     .finally(() => {
