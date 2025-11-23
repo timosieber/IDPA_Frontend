@@ -5,6 +5,28 @@ import { account } from './appwrite'
 const isDev = import.meta.env.DEV
 const BACKEND_URL = isDev ? (import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000') : ''
 
+let cachedJwt: { token: string; expiresAt: number } | null = null
+let inflightJwt: Promise<string> | null = null
+
+async function getJwt(): Promise<string> {
+  const now = Date.now()
+  if (cachedJwt && cachedJwt.expiresAt > now + 60_000) {
+    return cachedJwt.token
+  }
+  if (inflightJwt) return inflightJwt
+  inflightJwt = account
+    .createJWT()
+    .then(({ jwt }) => {
+      // Appwrite JWTs sind kurzlebig; wir cachen für 10 Minuten
+      cachedJwt = { token: jwt, expiresAt: Date.now() + 10 * 60 * 1000 }
+      return jwt
+    })
+    .finally(() => {
+      inflightJwt = null
+    })
+  return inflightJwt
+}
+
 export interface Chatbot {
   id: string
   userId: string
@@ -21,7 +43,7 @@ export interface Chatbot {
 }
 
 async function authHeaders() {
-  const { jwt } = await account.createJWT()
+  const jwt = await getJwt()
   return {
     Authorization: `Bearer ${jwt}`,
     'Content-Type': 'application/json',
