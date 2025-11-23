@@ -52,7 +52,7 @@ export default function Dashboard() {
 
   const embedBase = useMemo(() => window.location.origin, [])
   const snippet = useMemo(() => {
-    if (!selectedBot) return ''
+    if (!selectedBot || selectedBot.status !== 'ACTIVE') return ''
     const cfg = `window.ChatBotConfig = {\n  chatbotId: "${selectedBot.id}",\n  baseUrl: "${embedBase}"\n}`
     const src = `${embedBase}/embed.js`
     return `<script>\n${cfg}\n</script>\n<script defer src="${src}"></script>`
@@ -469,6 +469,20 @@ export default function Dashboard() {
                     <h3 className="font-semibold text-gray-900 mb-2">{selectedBot.name}</h3>
                     <p className="text-sm text-gray-600">ID: {selectedBot.id}</p>
                     <p className="text-sm text-gray-600 mt-1">Erstellt: {new Date(selectedBot.createdAt).toLocaleDateString('de-DE')}</p>
+                    <p className="text-sm mt-1">
+                      Status:{' '}
+                      <span
+                        className={
+                          selectedBot.status === 'ACTIVE'
+                            ? 'text-green-600 font-semibold'
+                            : selectedBot.status === 'DRAFT'
+                            ? 'text-yellow-600 font-semibold'
+                            : 'text-gray-600'
+                        }
+                      >
+                        {selectedBot.status}
+                      </span>
+                    </p>
                   </div>
 
                   {/* Knowledge Sources */}
@@ -493,23 +507,29 @@ export default function Dashboard() {
                   </div>
 
                   {/* Embed Snippet */}
-                  <div>
-                    <h4 className="font-semibold text-gray-900 mb-2">Embed-Code</h4>
-                    <div className="relative">
-                      <pre className="text-xs bg-gray-900 text-gray-100 rounded-lg p-3 overflow-auto max-h-48">
-                        <code>{snippet}</code>
-                      </pre>
-                      <button
-                        onClick={() => {
-                          navigator.clipboard.writeText(snippet)
-                          setSuccess('Code kopiert!')
-                        }}
-                        className="absolute top-2 right-2 inline-flex items-center gap-1 text-xs bg-indigo-600 text-white px-2 py-1 rounded hover:bg-indigo-700"
-                      >
-                        <Copy className="h-3 w-3" /> Kopieren
-                      </button>
+                  {selectedBot.status === 'ACTIVE' ? (
+                    <div>
+                      <h4 className="font-semibold text-gray-900 mb-2">Embed-Code</h4>
+                      <div className="relative">
+                        <pre className="text-xs bg-gray-900 text-gray-100 rounded-lg p-3 overflow-auto max-h-48">
+                          <code>{snippet}</code>
+                        </pre>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(snippet)
+                            setSuccess('Code kopiert!')
+                          }}
+                          className="absolute top-2 right-2 inline-flex items-center gap-1 text-xs bg-indigo-600 text-white px-2 py-1 rounded hover:bg-indigo-700"
+                        >
+                          <Copy className="h-3 w-3" /> Kopieren
+                        </button>
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800">
+                      Der Bot wird noch vorbereitet. Der Embed-Code steht zur Verfügung, sobald der Status <strong>ACTIVE</strong> erreicht ist.
+                    </div>
+                  )}
                 </div>
               ) : (
                 <form onSubmit={handleSaveSettings} className="space-y-4">
