@@ -11,8 +11,22 @@ const app = express()
 const PORT = process.env.PORT || 5173
 const INTERNAL_BACKEND_URL = process.env.INTERNAL_BACKEND_URL || 'http://idpa_backend.railway.internal:4000'
 
+// Security / framing for widget
+app.use((req, res, next) => {
+  res.setHeader('X-Frame-Options', 'ALLOWALL')
+  res.setHeader('Content-Security-Policy', "frame-ancestors *;")
+  next()
+})
+
 // Basic JSON parsing for API proxy
 app.use('/api', express.json({ limit: '1mb' }))
+app.use('/api', (req, res, next) => {
+  res.header('Access-Control-Allow-Origin', req.headers.origin || '*')
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept')
+  res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS')
+  if (req.method === 'OPTIONS') return res.sendStatus(200)
+  return next()
+})
 
 // Very small proxy for /api/* to internal backend URL
 app.use('/api', async (req, res) => {

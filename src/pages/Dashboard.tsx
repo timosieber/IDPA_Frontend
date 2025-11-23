@@ -80,6 +80,14 @@ export default function Dashboard() {
     try {
       const sources = await listKnowledgeSources(chatbotId)
       setBotSources(sources)
+      const hasPending = sources.some((s) => s.status === 'PENDING')
+      if (!hasPending) {
+        setScrapingBots((prev) => {
+          const updated = new Set(prev)
+          updated.delete(chatbotId)
+          return updated
+        })
+      }
     } catch (e) {
       console.error('Fehler beim Laden der Quellen:', e)
     } finally {
@@ -91,12 +99,13 @@ export default function Dashboard() {
     if (selectedBot) {
       loadBotSources(selectedBot.id)
       setActiveTab('details')
-      // Initialize form with current values
       setEditName(selectedBot.name)
       setEditDescription(selectedBot.description || '')
       setEditSystemPrompt(selectedBot.systemPrompt || '')
       setEditLogoUrl(selectedBot.logoUrl || '')
       setEditPrimaryColor((selectedBot.theme as any)?.primaryColor || '#4F46E5')
+      const interval = setInterval(() => loadBotSources(selectedBot.id), 3000)
+      return () => clearInterval(interval)
     }
   }, [selectedBot])
 
@@ -119,7 +128,7 @@ export default function Dashboard() {
       const bot = await createChatbot({
         name,
         allowedDomains: [], // Keine Einschränkung, alle Domains erlaubt
-        status: 'ACTIVE',
+        status: 'DRAFT',
       })
       setNewChatbot(bot)
       setStep('scraping')
@@ -142,30 +151,19 @@ export default function Dashboard() {
     setSuccess(`Chatbot "${newChatbot.name}" wird erstellt - Scraping läuft im Hintergrund...`)
 
     // Scraping im Hintergrund durchführen
-    try {
-      const result = await scrapeWebsite({
-        chatbotId: newChatbot.id,
-        startUrls: [websiteUrl],
-        maxDepth: 2,
-        maxPages: 50,
-      })
-
-      setScrapingBots(prev => {
-        const updated = new Set(prev)
-        updated.delete(newChatbot.id)
-        return updated
-      })
-
-      setSuccess(`✅ Chatbot "${newChatbot.name}" fertig: ${result.pagesScanned} Seiten gescraped, ${result.sources.length} Quellen erstellt!`)
-      await load()
-    } catch (e) {
-      setScrapingBots(prev => {
+    scrapeWebsite({
+      chatbotId: newChatbot.id,
+      startUrls: [websiteUrl],
+      maxDepth: 2,
+      maxPages: 50,
+    }).catch((e) => {
+      setScrapingBots((prev) => {
         const updated = new Set(prev)
         updated.delete(newChatbot.id)
         return updated
       })
       setError(`Scraping für "${newChatbot.name}" fehlgeschlagen: ${e instanceof Error ? e.message : 'Unbekannter Fehler'}`)
-    }
+    })
   }
 
   const handleSkipScraping = () => {
