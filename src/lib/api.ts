@@ -119,11 +119,16 @@ export type SendMessageResponse = {
   sources?: ChatSource[]
 }
 
-export async function sendMessage(params: { sessionId: string; token: string; message: string }): Promise<SendMessageResponse> {
+export async function sendMessage(params: {
+  sessionId: string
+  token: string
+  message: string
+  history?: Array<{ role: 'user' | 'assistant'; content: string }>
+}): Promise<SendMessageResponse> {
   const res = await fetch(`${BACKEND_URL}/api/chat/messages`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${params.token}` },
-    body: JSON.stringify({ sessionId: params.sessionId, message: params.message }),
+    body: JSON.stringify({ sessionId: params.sessionId, message: params.message, history: params.history }),
   })
   if (!res.ok) throw new Error(`Fehler beim Senden der Nachricht (${res.status})`)
   return res.json()

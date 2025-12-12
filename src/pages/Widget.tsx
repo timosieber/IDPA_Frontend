@@ -11,6 +11,9 @@ type AvatarType = 'robot' | 'human' | 'pencil'
 
 const isValidHexColor = (value: string) => /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(value)
 
+const STORAGE_KEY = 'idpa_widget_messages_v1'
+const MAX_HISTORY_MESSAGES = 12
+
 type TextToken =
   | { type: 'text'; value: string }
   | { type: 'link'; label: string; href: string }
@@ -179,6 +182,37 @@ export default function Widget() {
   const isPreparing = !ready && !error
 
   useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(STORAGE_KEY)
+      if (!raw) return
+      const parsed: unknown = JSON.parse(raw)
+      if (!Array.isArray(parsed)) return
+      const restored = parsed
+        .slice(-MAX_HISTORY_MESSAGES)
+        .map((m: unknown) => {
+          const maybe = m as { role?: unknown; content?: unknown }
+          const role = maybe?.role
+          const content = maybe?.content
+          if ((role !== 'user' && role !== 'assistant') || typeof content !== 'string') return null
+          return { role, content } as ChatMessage
+        })
+        .filter((m): m is ChatMessage => Boolean(m))
+      if (restored.length) setMessages(restored)
+    } catch {
+      // ignore
+    }
+  }, [])
+
+  useEffect(() => {
+    try {
+      const minimal = messages.map((m) => ({ role: m.role, content: m.content }))
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(minimal.slice(-MAX_HISTORY_MESSAGES)))
+    } catch {
+      // ignore
+    }
+  }, [messages])
+
+  useEffect(() => {
     let mounted = true
     let retryTimer: number | null = null
 
@@ -224,10 +258,13 @@ export default function Widget() {
     if (!input.trim() || !sessionId || !token) return
     const msg = input.trim()
     setInput('')
+    const history = messages
+      .slice(-MAX_HISTORY_MESSAGES)
+      .map((m) => ({ role: m.role, content: m.content }))
     setMessages((m) => [...m, { role: 'user', content: msg }])
     setSending(true)
     try {
-      const res = await sendMessage({ sessionId, token, message: msg })
+      const res = await sendMessage({ sessionId, token, message: msg, history })
       setMessages((m) => [...m, { role: 'assistant', content: res.answer, sources: res.sources }])
       setOpenSourcesFor(null)
     } catch (e) {
