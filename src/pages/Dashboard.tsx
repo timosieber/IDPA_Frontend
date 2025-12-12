@@ -1,8 +1,22 @@
 import { Bot, LogOut, Plus, MessageSquare, BarChart, GraduationCap, Copy, Trash2, Globe, CheckCircle, Clock, XCircle, Settings, Palette } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { useEffect, useMemo, useState } from 'react'
-import { createChatbot, deleteChatbot, listChatbots, scrapeWebsite, listKnowledgeSources, updateChatbot, type Chatbot, type KnowledgeSource } from '../lib/api'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { createChatbot, deleteChatbot, listChatbots, scrapeWebsite, listKnowledgeSources, streamProvisioningEvents, updateChatbot, type Chatbot, type KnowledgeSource } from '../lib/api'
+
+const SCRAPING_BOTS_STORAGE_KEY = 'idpa_scraping_bots'
+
+function loadScrapingBotsFromStorage(): Set<string> {
+  try {
+    const raw = localStorage.getItem(SCRAPING_BOTS_STORAGE_KEY)
+    if (!raw) return new Set()
+    const parsed = JSON.parse(raw) as unknown
+    if (!Array.isArray(parsed)) return new Set()
+    return new Set(parsed.filter((v): v is string => typeof v === 'string' && v.length > 0))
+  } catch {
+    return new Set()
+  }
+}
 
 export default function Dashboard() {
   const navigate = useNavigate()
@@ -42,12 +56,13 @@ export default function Dashboard() {
   const [saving, setSaving] = useState(false)
 
   // Background Scraping State
-  const [scrapingBots, setScrapingBots] = useState<Set<string>>(new Set())
+  const [scrapingBots, setScrapingBots] = useState<Set<string>>(() => loadScrapingBotsFromStorage())
+  const provisioningAbortControllersRef = useRef<Map<string, AbortController>>(new Map())
 
   // Helper to show prep state while Scraper/Sources noch arbeiten
   const isBotPreparing = (bot: Chatbot) => {
     const hasPendingSources = selectedBot?.id === bot.id && botSources.some((s) => s.status === 'PENDING')
-    return scrapingBots.has(bot.id) || bot.status === 'DRAFT' || hasPendingSources
+    return scrapingBots.has(bot.id) || hasPendingSources
   }
 
   const embedBase = useMemo(() => window.location.origin, [])
@@ -58,21 +73,56 @@ export default function Dashboard() {
     return `<script>\n${cfg}\n</script>\n<script defer src="${src}"></script>`
   }, [selectedBot, embedBase])
 
-  const load = async () => {
-    setLoading(true)
-    setError(null)
+  const load = async ({ silent }: { silent?: boolean } = {}) => {
+    if (!silent) setLoading(true)
+    if (!silent) setError(null)
     try {
       const data = await listChatbots()
       setChatbots(data)
+      setSelectedBot((prev) => {
+        if (!prev) return prev
+        return data.find((b) => b.id === prev.id) ?? prev
+      })
+
+      setScrapingBots((prev) => {
+        if (!prev.size) return prev
+        const updated = new Set(prev)
+        for (const id of prev) {
+          const bot = data.find((b) => b.id === id)
+          if (bot?.status === 'ACTIVE') {
+            updated.delete(id)
+          }
+        }
+        return updated
+      })
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Unbekannter Fehler')
+      if (!silent) {
+        setError(e instanceof Error ? e.message : 'Unbekannter Fehler')
+      } else {
+        console.error('Fehler beim Hintergrund-Refresh:', e)
+      }
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }
 
   useEffect(() => {
     load()
+  }, [])
+
+  // Persist background scraping state across reloads
+  useEffect(() => {
+    localStorage.setItem(SCRAPING_BOTS_STORAGE_KEY, JSON.stringify(Array.from(scrapingBots)))
+  }, [scrapingBots])
+
+  useEffect(() => {
+    const controllers = provisioningAbortControllersRef.current
+    return () => {
+      for (const controller of controllers.values()) {
+        controller.abort()
+      }
+      controllers.clear()
+    }
   }, [])
 
   const loadBotSources = async (chatbotId: string) => {
@@ -103,7 +153,8 @@ export default function Dashboard() {
       setEditDescription(selectedBot.description || '')
       setEditSystemPrompt(selectedBot.systemPrompt || '')
       setEditLogoUrl(selectedBot.logoUrl || '')
-      setEditPrimaryColor((selectedBot.theme as any)?.primaryColor || '#4F46E5')
+      const theme = selectedBot.theme as { primaryColor?: unknown } | null | undefined
+      setEditPrimaryColor(typeof theme?.primaryColor === 'string' ? theme.primaryColor : '#4F46E5')
       const interval = setInterval(() => loadBotSources(selectedBot.id), 3000)
       return () => clearInterval(interval)
     }
@@ -130,6 +181,7 @@ export default function Dashboard() {
         allowedDomains: [], // Keine Einschränkung, alle Domains erlaubt
         status: 'DRAFT',
       })
+      setChatbots((prev) => [bot, ...prev.filter((b) => b.id !== bot.id)])
       setNewChatbot(bot)
       setStep('scraping')
       setSuccess(`Chatbot "${bot.name}" erfolgreich erstellt!`)
@@ -146,9 +198,43 @@ export default function Dashboard() {
 
     // Modal sofort schließen und Bot zur Scraping-Liste hinzufügen
     setShowCreateModal(false)
-    setScrapingBots(prev => new Set(prev).add(newChatbot.id))
+    setScrapingBots((prev) => new Set(prev).add(newChatbot.id))
     setSelectedBot(newChatbot)
     setSuccess(`Chatbot "${newChatbot.name}" wird erstellt - Scraping läuft im Hintergrund...`)
+
+    // Subscribe to backend provisioning events (push, no polling)
+    const controller = new AbortController()
+    provisioningAbortControllersRef.current.get(newChatbot.id)?.abort()
+    provisioningAbortControllersRef.current.set(newChatbot.id, controller)
+    void streamProvisioningEvents({
+      chatbotId: newChatbot.id,
+      signal: controller.signal,
+      onEvent: (evt) => {
+        if (evt.chatbotId !== newChatbot.id) return
+        if (evt.type === 'completed' && evt.status === 'ACTIVE') {
+          setScrapingBots((prev) => {
+            const updated = new Set(prev)
+            updated.delete(newChatbot.id)
+            return updated
+          })
+          provisioningAbortControllersRef.current.get(newChatbot.id)?.abort()
+          provisioningAbortControllersRef.current.delete(newChatbot.id)
+          void load({ silent: true })
+        }
+        if (evt.type === 'failed') {
+          setScrapingBots((prev) => {
+            const updated = new Set(prev)
+            updated.delete(newChatbot.id)
+            return updated
+          })
+          provisioningAbortControllersRef.current.get(newChatbot.id)?.abort()
+          provisioningAbortControllersRef.current.delete(newChatbot.id)
+          setError(`Scraping für "${newChatbot.name}" fehlgeschlagen: ${evt.error || 'Unbekannter Fehler'}`)
+        }
+      },
+    }).catch((err) => {
+      console.error('Provisioning-Stream Fehler:', err)
+    })
 
     // Scraping im Hintergrund durchführen
     scrapeWebsite({
@@ -214,7 +300,7 @@ export default function Dashboard() {
   }
 
   const activeBots = chatbots.filter(b => b.status === 'ACTIVE').length
-  const totalSources = chatbots.reduce((sum, _) => sum + 0, 0) // TODO: real count
+  const totalSources = 0 // TODO: real count
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -600,7 +686,7 @@ export default function Dashboard() {
                       onChange={(e) => setEditSystemPrompt(e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent font-mono text-sm"
                       rows={6}
-                      placeholder="Leer lassen für Standard-Prompt. Beispiel:&#10;Du bist ein Support-Bot für TrendingMedia.&#10;- Sprich aus Unternehmensperspektive (wir, uns)&#10;- Halte Antworten kurz und präzise&#10;- Nutze das search_knowledge_base Tool"
+                      placeholder="Leer lassen für Standard-Prompt. Beispiel:&#10;Du bist ein Support-Bot für TrendingMedia.&#10;- Sprich aus Unternehmensperspektive (wir, uns)&#10;- Halte Antworten kurz und präzise&#10;- Antworte nur basierend auf den bereitgestellten Infos"
                     />
                     <p className="text-xs text-gray-500 mt-1">
                       Falls leer, wird der Standard-Prompt verwendet (Unternehmensperspektive, kurze Antworten)

@@ -106,7 +106,20 @@ export async function createSession(chatbotId: string): Promise<{ sessionId: str
   return res.json()
 }
 
-export async function sendMessage(params: { sessionId: string; token: string; message: string }): Promise<{ sessionId: string; answer: string; context?: unknown } > {
+export type ChatSource = {
+  content: string
+  metadata: Record<string, unknown>
+  score: number
+}
+
+export type SendMessageResponse = {
+  sessionId: string | null
+  answer: string
+  context?: unknown
+  sources?: ChatSource[]
+}
+
+export async function sendMessage(params: { sessionId: string; token: string; message: string }): Promise<SendMessageResponse> {
   const res = await fetch(`${BACKEND_URL}/api/chat/messages`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${params.token}` },
@@ -170,4 +183,81 @@ export async function deleteKnowledgeSource(id: string): Promise<void> {
     credentials: 'include',
   })
   if (!res.ok) throw new Error(`Fehler beim Löschen der Wissensquelle (${res.status})`)
+}
+
+export type ProvisioningEvent =
+  | { type: 'snapshot'; chatbotId: string; chatbotStatus: Chatbot['status'] | null; pendingSources: number; failedSources: number; updatedAt: string | null }
+  | { type: 'started'; chatbotId: string }
+  | { type: 'completed'; chatbotId: string; status: 'ACTIVE' }
+  | { type: 'failed'; chatbotId: string; status: Chatbot['status'] | string; error?: string }
+
+export async function streamProvisioningEvents(params: {
+  chatbotId: string
+  onEvent: (event: ProvisioningEvent) => void
+  signal?: AbortSignal
+}): Promise<void> {
+  const url = `${BACKEND_URL}/api/knowledge/provisioning/stream?chatbotId=${encodeURIComponent(params.chatbotId)}`
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: {
+      ...(await authHeaders()),
+      Accept: 'text/event-stream',
+    },
+    credentials: 'include',
+    signal: params.signal,
+  })
+
+  if (!res.ok || !res.body) {
+    throw new Error(`Provisioning-Stream konnte nicht gestartet werden (${res.status})`)
+  }
+
+  const reader = res.body.getReader()
+  const decoder = new TextDecoder('utf-8')
+
+  let buffer = ''
+  let eventName: string | null = null
+  let dataLines: string[] = []
+
+  const flush = () => {
+    if (!dataLines.length) return
+    if (eventName !== 'provisioning') {
+      eventName = null
+      dataLines = []
+      return
+    }
+    const payload = dataLines.join('\n')
+    eventName = null
+    dataLines = []
+    try {
+      const parsed = JSON.parse(payload) as ProvisioningEvent
+      params.onEvent(parsed)
+    } catch {
+      // ignore invalid payloads
+    }
+  }
+
+  while (true) {
+    const { value, done } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+
+    // Parse SSE frames: events separated by a blank line
+    while (true) {
+      const idx = buffer.indexOf('\n\n')
+      if (idx === -1) break
+      const rawEvent = buffer.slice(0, idx)
+      buffer = buffer.slice(idx + 2)
+
+      const lines = rawEvent.split('\n').map((l) => l.replace(/\r$/, ''))
+      for (const line of lines) {
+        if (!line || line.startsWith(':')) continue
+        if (line.startsWith('event:')) {
+          eventName = line.slice('event:'.length).trim()
+        } else if (line.startsWith('data:')) {
+          dataLines.push(line.slice('data:'.length).trimStart())
+        }
+      }
+      flush()
+    }
+  }
 }
