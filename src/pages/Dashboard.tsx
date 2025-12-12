@@ -59,6 +59,10 @@ export default function Dashboard() {
   const [scrapingBots, setScrapingBots] = useState<Set<string>>(() => loadScrapingBotsFromStorage())
   const provisioningAbortControllersRef = useRef<Map<string, AbortController>>(new Map())
 
+  // Widget preview state (local-only)
+  const [widgetGreeting, setWidgetGreeting] = useState('Hallo! Wie können wir dir helfen?')
+  const [widgetPreviewNonce, setWidgetPreviewNonce] = useState(0)
+
   // Helper to show prep state while Scraper/Sources noch arbeiten
   const isBotPreparing = (bot: Chatbot) => {
     const hasPendingSources = selectedBot?.id === bot.id && botSources.some((s) => s.status === 'PENDING')
@@ -72,6 +76,19 @@ export default function Dashboard() {
     const src = `${embedBase}/embed.js`
     return `<script>\n${cfg}\n</script>\n<script defer src="${src}"></script>`
   }, [selectedBot, embedBase])
+
+  const widgetPreviewUrl = useMemo(() => {
+    if (!selectedBot) return ''
+    const base = `${window.location.origin}/widget`
+    const params = new URLSearchParams({
+      chatbotId: selectedBot.id,
+      primaryColor: editPrimaryColor,
+      title: editName || selectedBot.name,
+      greeting: widgetGreeting,
+      v: String(widgetPreviewNonce),
+    })
+    return `${base}?${params.toString()}`
+  }, [editName, editPrimaryColor, selectedBot, widgetGreeting, widgetPreviewNonce])
 
   const load = async ({ silent }: { silent?: boolean } = {}) => {
     if (!silent) setLoading(true)
@@ -155,6 +172,7 @@ export default function Dashboard() {
       setEditLogoUrl(selectedBot.logoUrl || '')
       const theme = selectedBot.theme as { primaryColor?: unknown } | null | undefined
       setEditPrimaryColor(typeof theme?.primaryColor === 'string' ? theme.primaryColor : '#4F46E5')
+      setWidgetPreviewNonce((n) => n + 1)
       const interval = setInterval(() => loadBotSources(selectedBot.id), 3000)
       return () => clearInterval(interval)
     }
@@ -691,6 +709,58 @@ export default function Dashboard() {
                     <p className="text-xs text-gray-500 mt-1">
                       Falls leer, wird der Standard-Prompt verwendet (Unternehmensperspektive, kurze Antworten)
                     </p>
+                  </div>
+
+                  {/* Widget Preview */}
+                  <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <div className="text-sm font-semibold text-gray-900">Widget-Vorschau</div>
+                        <div className="text-xs text-gray-600">Live testen & optisch anpassen (nur Vorschau).</div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setWidgetPreviewNonce((n) => n + 1)}
+                        className="text-xs bg-white border border-gray-300 px-3 py-1.5 rounded-lg hover:bg-gray-100"
+                      >
+                        Vorschau neu starten
+                      </button>
+                    </div>
+
+                    <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-3">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">Begrüßungstext</label>
+                          <textarea
+                            value={widgetGreeting}
+                            onChange={(e) => setWidgetGreeting(e.target.value)}
+                            rows={3}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+                            placeholder="z.B. Hallo! Wie können wir dir helfen?"
+                          />
+                          <div className="text-[11px] text-gray-500 mt-1">
+                            Titel und Primärfarbe kommen aus den Einstellungen oben.
+                          </div>
+                        </div>
+
+                        <div className="text-xs text-gray-600">
+                          Tipp: Schreibe im Widget eine Nachricht, um Antworten + Quellen zu testen.
+                        </div>
+                      </div>
+
+                      <div className="rounded-xl border border-gray-200 bg-white overflow-hidden shadow-sm">
+                        {selectedBot ? (
+                          <iframe
+                            key={widgetPreviewNonce}
+                            src={widgetPreviewUrl}
+                            title="Widget Preview"
+                            className="w-full h-[520px]"
+                          />
+                        ) : (
+                          <div className="p-4 text-sm text-gray-500">Wähle einen Chatbot aus.</div>
+                        )}
+                      </div>
+                    </div>
                   </div>
 
                   {/* Save Button */}

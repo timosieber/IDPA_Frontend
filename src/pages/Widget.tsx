@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { createSession, sendMessage, type ChatSource } from '../lib/api'
 
 type ChatMessage = {
@@ -6,6 +6,8 @@ type ChatMessage = {
   content: string
   sources?: ChatSource[]
 }
+
+const isValidHexColor = (value: string) => /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(value)
 
 const extractSourceRef = (source: ChatSource): { title: string; url: string; score: number } | null => {
   const meta = source.metadata || {}
@@ -47,6 +49,13 @@ function useQuery() {
 export default function Widget() {
   const q = useQuery()
   const chatbotId = q.get('chatbotId') || ''
+  const primaryColorParam = q.get('primaryColor') || ''
+  const headerTitleParam = q.get('title') || ''
+  const greetingParam = q.get('greeting') || ''
+
+  const primaryColor = isValidHexColor(primaryColorParam) ? primaryColorParam : '#4F46E5'
+  const headerTitle = headerTitleParam.trim() || 'Chat'
+  const greeting = greetingParam.trim()
 
   const [sessionId, setSessionId] = useState<string>('')
   const [token, setToken] = useState<string>('')
@@ -60,7 +69,9 @@ export default function Widget() {
 
   useEffect(() => {
     let mounted = true
-    ;(async () => {
+    let retryTimer: number | null = null
+
+    const bootstrap = async () => {
       try {
         if (!chatbotId) throw new Error('Missing chatbotId')
         const s = await createSession(chatbotId)
@@ -68,14 +79,32 @@ export default function Widget() {
         setSessionId(s.sessionId)
         setToken(s.token)
         setReady(true)
+        setError(null)
+        if (greeting) {
+          setMessages((prev) => (prev.length === 0 ? [{ role: 'assistant', content: greeting }] : prev))
+        }
       } catch (e) {
-        setError(e instanceof Error ? e.message : 'Fehler beim Initialisieren')
+        const msg = e instanceof Error ? e.message : 'Fehler beim Initialisieren'
+        // If the bot is still provisioning, keep the UI in "preparing" state and retry.
+        if (String(msg).includes('(503)')) {
+          if (!mounted) return
+          setError(null)
+          setReady(false)
+          retryTimer = window.setTimeout(() => {
+            void bootstrap()
+          }, 2500)
+          return
+        }
+        setError(msg)
       }
-    })()
+    }
+
+    void bootstrap()
     return () => {
       mounted = false
+      if (retryTimer) window.clearTimeout(retryTimer)
     }
-  }, [chatbotId])
+  }, [chatbotId, greeting])
 
   const onSend = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -95,15 +124,21 @@ export default function Widget() {
   }
 
   return (
-    <div className="h-screen w-screen bg-gradient-to-b from-indigo-50 via-white to-white text-gray-900">
+    <div
+      className="h-screen w-screen bg-gradient-to-b from-indigo-50 via-white to-white text-gray-900"
+      style={{ '--primary': primaryColor } as CSSProperties}
+    >
       <div className="h-full flex flex-col">
         <header className="px-4 py-3 border-b bg-white/70 backdrop-blur">
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-sm font-semibold">Chat</div>
+              <div className="text-sm font-semibold">{headerTitle}</div>
               <div className="text-[11px] text-gray-500 truncate max-w-[240px]">{chatbotId ? `Bot: ${chatbotId}` : 'Kein Bot'}</div>
             </div>
-            <div className={`h-2.5 w-2.5 rounded-full ${ready ? 'bg-green-500' : error ? 'bg-red-500' : 'bg-indigo-500 animate-pulse'}`} />
+            <div
+              className={`h-2.5 w-2.5 rounded-full ${ready ? 'bg-green-500' : error ? 'bg-red-500' : 'animate-pulse'}`}
+              style={!ready && !error ? { backgroundColor: primaryColor } : undefined}
+            />
           </div>
         </header>
         <main className="flex-1 p-3 overflow-auto space-y-3">
@@ -125,9 +160,10 @@ export default function Widget() {
               <div
                 className={`rounded-2xl px-3 py-2 shadow-sm ring-1 ${
                   m.role === 'user'
-                    ? 'bg-indigo-600 text-white ring-indigo-600/20'
+                    ? 'text-white ring-indigo-600/20'
                     : 'bg-white text-gray-900 ring-gray-200'
                 }`}
+                style={m.role === 'user' ? { backgroundColor: primaryColor } : undefined}
               >
                 <div className="whitespace-pre-wrap text-sm leading-relaxed">{m.content}</div>
 
@@ -158,8 +194,12 @@ export default function Widget() {
                                 href={s.url}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="block rounded-lg px-2 py-1.5 text-xs text-indigo-700 hover:bg-indigo-50"
+                                className="block rounded-lg px-2 py-1.5 text-xs hover:bg-indigo-50"
                                 title={s.url}
+                                style={{
+                                  color: primaryColor,
+                                  backgroundColor: 'transparent',
+                                }}
                               >
                                 <div className="font-medium text-gray-900 truncate">{s.title}</div>
                                 <div className="text-[11px] text-gray-500 truncate">{s.url}</div>
@@ -186,7 +226,11 @@ export default function Widget() {
           />
           <button
             disabled={!ready || sending}
-            className="rounded-xl bg-indigo-600 text-white px-4 py-2 text-sm font-medium shadow-sm hover:bg-indigo-700 disabled:opacity-60"
+            className="rounded-xl text-white px-4 py-2 text-sm font-medium shadow-sm disabled:opacity-60"
+            style={{
+              backgroundColor: primaryColor,
+              opacity: !ready || sending ? 0.6 : 1,
+            }}
           >
             {ready ? (sending ? 'Sende…' : 'Senden') : 'Bereite vor…'}
           </button>
