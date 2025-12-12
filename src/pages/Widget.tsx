@@ -9,6 +9,66 @@ type ChatMessage = {
 
 const isValidHexColor = (value: string) => /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(value)
 
+type TextToken =
+  | { type: 'text'; value: string }
+  | { type: 'link'; label: string; href: string }
+
+const tokenizeLinks = (input: string): TextToken[] => {
+  const tokens: TextToken[] = []
+  let cursor = 0
+
+  const markdownLink = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g
+  let match: RegExpExecArray | null
+  while ((match = markdownLink.exec(input)) !== null) {
+    const start = match.index
+    const full = match[0]
+    const label = match[1] ?? ''
+    const href = match[2] ?? ''
+
+    if (start > cursor) {
+      tokens.push({ type: 'text', value: input.slice(cursor, start) })
+    }
+    tokens.push({ type: 'link', label, href })
+    cursor = start + full.length
+  }
+
+  const remaining = input.slice(cursor)
+  if (!remaining) return tokens
+
+  // Linkify bare URLs in the remaining text
+  const urlRegex = /(https?:\/\/[^\s)]+)(?!\w)/g
+  let last = 0
+  while ((match = urlRegex.exec(remaining)) !== null) {
+    const start = match.index
+    const href = match[1] ?? ''
+    if (start > last) tokens.push({ type: 'text', value: remaining.slice(last, start) })
+    tokens.push({ type: 'link', label: href, href })
+    last = start + href.length
+  }
+  if (last < remaining.length) tokens.push({ type: 'text', value: remaining.slice(last) })
+
+  return tokens
+}
+
+const renderContentWithLinks = (content: string, primaryColor: string) => {
+  const tokens = tokenizeLinks(content)
+  return tokens.map((t, idx) => {
+    if (t.type === 'text') return <span key={idx}>{t.value}</span>
+    return (
+      <a
+        key={idx}
+        href={t.href}
+        target="_blank"
+        rel="noreferrer"
+        className="underline underline-offset-2 hover:opacity-90"
+        style={{ color: primaryColor }}
+      >
+        {t.label}
+      </a>
+    )
+  })
+}
+
 const extractSourceRef = (source: ChatSource): { title: string; url: string; score: number } | null => {
   const meta = source.metadata || {}
   const titleRaw =
@@ -165,7 +225,9 @@ export default function Widget() {
                 }`}
                 style={m.role === 'user' ? { backgroundColor: primaryColor } : undefined}
               >
-                <div className="whitespace-pre-wrap text-sm leading-relaxed">{m.content}</div>
+                <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                  {renderContentWithLinks(m.content, m.role === 'user' ? '#FFFFFF' : primaryColor)}
+                </div>
 
                 {m.role === 'assistant' && uniqueSources(m.sources).length > 0 && (
                   <div className="mt-2 flex justify-end">
