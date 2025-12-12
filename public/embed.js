@@ -41,7 +41,9 @@
     iframe.style.height = '100%';
     iframe.style.border = '0';
     iframe.setAttribute('referrerpolicy', 'origin');
-    iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms');
+    // Allow user-initiated navigation/popups from inside the widget (e.g. clicking sources).
+    // Still keep sandboxing for safety.
+    iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation');
 
     container.appendChild(iframe);
     document.body.appendChild(container);
@@ -49,4 +51,3 @@
     console.error('[ChatBot] Failed to load widget:', e);
   }
 })();
-
