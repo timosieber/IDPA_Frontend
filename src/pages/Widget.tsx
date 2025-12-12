@@ -13,6 +13,17 @@ type TextToken =
   | { type: 'text'; value: string }
   | { type: 'link'; label: string; href: string }
 
+const splitTrailingPunctuation = (href: string): { href: string; trailing: string } => {
+  // Common punctuation that often follows URLs in natural language.
+  const match = href.match(/^(.*?)([)\].,;:!?]+)$/)
+  if (!match) return { href, trailing: '' }
+  const core = match[1] ?? href
+  const trailing = match[2] ?? ''
+  // Don't strip if it would remove the whole URL
+  if (!core.startsWith('http')) return { href, trailing: '' }
+  return { href: core, trailing }
+}
+
 const tokenizeLinks = (input: string): TextToken[] => {
   const tokens: TextToken[] = []
   let cursor = 0
@@ -23,12 +34,14 @@ const tokenizeLinks = (input: string): TextToken[] => {
     const start = match.index
     const full = match[0]
     const label = match[1] ?? ''
-    const href = match[2] ?? ''
+    const rawHref = match[2] ?? ''
+    const { href, trailing } = splitTrailingPunctuation(rawHref)
 
     if (start > cursor) {
       tokens.push({ type: 'text', value: input.slice(cursor, start) })
     }
     tokens.push({ type: 'link', label, href })
+    if (trailing) tokens.push({ type: 'text', value: trailing })
     cursor = start + full.length
   }
 
@@ -40,10 +53,12 @@ const tokenizeLinks = (input: string): TextToken[] => {
   let last = 0
   while ((match = urlRegex.exec(remaining)) !== null) {
     const start = match.index
-    const href = match[1] ?? ''
+    const rawHref = match[1] ?? ''
+    const { href, trailing } = splitTrailingPunctuation(rawHref)
     if (start > last) tokens.push({ type: 'text', value: remaining.slice(last, start) })
     tokens.push({ type: 'link', label: href, href })
-    last = start + href.length
+    if (trailing) tokens.push({ type: 'text', value: trailing })
+    last = start + rawHref.length
   }
   if (last < remaining.length) tokens.push({ type: 'text', value: remaining.slice(last) })
 

@@ -43,7 +43,7 @@
     iframe.setAttribute('referrerpolicy', 'origin');
     // Allow user-initiated navigation/popups from inside the widget (e.g. clicking sources).
     // Still keep sandboxing for safety.
-    iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation');
+    iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation allow-downloads');
 
     container.appendChild(iframe);
     document.body.appendChild(container);
