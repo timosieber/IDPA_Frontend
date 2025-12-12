@@ -45,7 +45,8 @@ export default function Dashboard() {
   const [selectedBot, setSelectedBot] = useState<Chatbot | null>(null)
   const [botSources, setBotSources] = useState<KnowledgeSource[]>([])
   const [loadingSources, setLoadingSources] = useState(false)
-  const [activeTab, setActiveTab] = useState<'details' | 'settings'>('details')
+  const [activeTab, setActiveTab] = useState<'details' | 'settings' | 'preview'>('details')
+  const [drawerOpen, setDrawerOpen] = useState(false)
 
   // Settings Form State
   const [editName, setEditName] = useState('')
@@ -177,6 +178,11 @@ export default function Dashboard() {
       return () => clearInterval(interval)
     }
   }, [selectedBot])
+
+  const handleSelectBot = (bot: Chatbot) => {
+    setSelectedBot(bot)
+    setDrawerOpen(true)
+  }
 
   const handleCreateClick = () => {
     setShowCreateModal(true)
@@ -461,7 +467,7 @@ export default function Dashboard() {
                       className={`py-4 px-4 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors ${
                         selectedBot?.id === bot.id ? 'bg-indigo-50 border-2 border-indigo-200' : ''
                       }`}
-                      onClick={() => setSelectedBot(bot)}
+                      onClick={() => handleSelectBot(bot)}
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
@@ -513,7 +519,7 @@ export default function Dashboard() {
           </div>
 
           {/* Details Panel */}
-          <div className="bg-white rounded-lg shadow">
+          <div className="hidden lg:block bg-white rounded-lg shadow">
             <div className="p-6 border-b border-gray-200">
               {selectedBot ? (
                 <div className="flex gap-2">
@@ -777,6 +783,293 @@ export default function Dashboard() {
           </div>
         </div>
       </main>
+
+      {/* Mobile Bottom Drawer (Details/Settings/Preview) */}
+      {selectedBot && drawerOpen && (
+        <div className="lg:hidden">
+          <button
+            type="button"
+            aria-label="Close drawer"
+            onClick={() => setDrawerOpen(false)}
+            className="fixed inset-0 bg-black/30 z-40"
+          />
+          <div className="fixed inset-x-0 bottom-0 z-50 max-h-[88vh] rounded-t-2xl bg-white shadow-2xl border-t border-gray-200 overflow-hidden">
+            <div className="px-4 pt-3 pb-2 border-b border-gray-200">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-sm font-semibold text-gray-900 truncate">{selectedBot.name}</div>
+                  <div className="text-[11px] text-gray-500 truncate">ID: {selectedBot.id}</div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={`px-2.5 py-1 text-[11px] font-semibold rounded-full ${
+                    isBotPreparing(selectedBot)
+                      ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white'
+                      : selectedBot.status === 'ACTIVE'
+                        ? 'bg-green-100 text-green-800'
+                        : selectedBot.status === 'DRAFT'
+                          ? 'bg-gray-100 text-gray-800'
+                          : 'bg-yellow-100 text-yellow-800'
+                  }`}>
+                    {isBotPreparing(selectedBot) ? 'Wird vorbereitet' : selectedBot.status}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setDrawerOpen(false)}
+                    className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs hover:bg-gray-100"
+                  >
+                    Schließen
+                  </button>
+                </div>
+              </div>
+
+              <div className="mt-3 grid grid-cols-3 gap-2">
+                <button
+                  onClick={() => setActiveTab('details')}
+                  className={`px-3 py-2 rounded-lg text-xs font-medium ${
+                    activeTab === 'details' ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-50 text-gray-700'
+                  }`}
+                >
+                  Details
+                </button>
+                <button
+                  onClick={() => setActiveTab('preview')}
+                  className={`px-3 py-2 rounded-lg text-xs font-medium ${
+                    activeTab === 'preview' ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-50 text-gray-700'
+                  }`}
+                >
+                  Vorschau
+                </button>
+                <button
+                  onClick={() => setActiveTab('settings')}
+                  className={`px-3 py-2 rounded-lg text-xs font-medium ${
+                    activeTab === 'settings' ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-50 text-gray-700'
+                  }`}
+                >
+                  Einstellungen
+                </button>
+              </div>
+            </div>
+
+            <div className="p-4 overflow-auto max-h-[calc(88vh-120px)]">
+              {activeTab === 'details' && (
+                <div className="space-y-4">
+                  {isBotPreparing(selectedBot) && (
+                    <div className="rounded-xl bg-gradient-to-r from-indigo-500 via-blue-500 to-purple-500 text-white p-4 flex items-start gap-3 shadow-lg">
+                      <div className="h-10 w-10 rounded-full border-2 border-white/60 flex items-center justify-center">
+                        <svg className="h-5 w-5 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                      </div>
+                      <div>
+                        <p className="font-semibold">Chatbot wird vorbereitet</p>
+                        <p className="text-sm text-indigo-50">Der Scraper verarbeitet gerade deine Website. Das Chatten ist in Kürze möglich.</p>
+                      </div>
+                    </div>
+                  )}
+
+                  <div>
+                    <h4 className="font-semibold text-gray-900 mb-2">Wissensquellen</h4>
+                    {loadingSources ? (
+                      <p className="text-sm text-gray-500">Lade...</p>
+                    ) : botSources.length === 0 ? (
+                      <p className="text-sm text-gray-500">Keine Quellen vorhanden</p>
+                    ) : (
+                      <ul className="space-y-2">
+                        {botSources.map((source) => (
+                          <li key={source.id} className="text-sm flex items-center gap-2">
+                            {source.status === 'READY' && <CheckCircle className="h-4 w-4 text-green-600" />}
+                            {source.status === 'PENDING' && <Clock className="h-4 w-4 text-yellow-600" />}
+                            {source.status === 'FAILED' && <XCircle className="h-4 w-4 text-red-600" />}
+                            <span className="truncate">{source.label}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+
+                  {selectedBot.status === 'ACTIVE' ? (
+                    <div>
+                      <h4 className="font-semibold text-gray-900 mb-2">Embed-Code</h4>
+                      <div className="relative">
+                        <pre className="text-xs bg-gray-900 text-gray-100 rounded-lg p-3 overflow-auto max-h-40">
+                          <code>{snippet}</code>
+                        </pre>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(snippet)
+                            setSuccess('Code kopiert!')
+                          }}
+                          className="absolute top-2 right-2 inline-flex items-center gap-1 text-xs bg-indigo-600 text-white px-2 py-1 rounded hover:bg-indigo-700"
+                        >
+                          <Copy className="h-3 w-3" /> Kopieren
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800">
+                      Der Bot wird noch vorbereitet. Der Embed-Code steht zur Verfügung, sobald der Status <strong>ACTIVE</strong> erreicht ist.
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {activeTab === 'preview' && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 gap-3">
+                    <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <div className="text-sm font-semibold text-gray-900">Widget-Vorschau</div>
+                          <div className="text-xs text-gray-600">Anpassungen hier sind live, aber erst nach Speichern dauerhaft.</div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setWidgetPreviewNonce((n) => n + 1)}
+                          className="text-xs bg-white border border-gray-300 px-3 py-1.5 rounded-lg hover:bg-gray-100"
+                        >
+                          Neu starten
+                        </button>
+                      </div>
+
+                      <div className="mt-3 space-y-3">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">Titel</label>
+                          <input
+                            value={editName}
+                            onChange={(e) => setEditName(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">Primärfarbe</label>
+                          <div className="flex gap-2 items-center">
+                            <input
+                              type="color"
+                              value={editPrimaryColor}
+                              onChange={(e) => setEditPrimaryColor(e.target.value)}
+                              className="h-10 w-16 border border-gray-300 rounded cursor-pointer"
+                            />
+                            <input
+                              type="text"
+                              value={editPrimaryColor}
+                              onChange={(e) => setEditPrimaryColor(e.target.value)}
+                              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+                              placeholder="#4F46E5"
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">Begrüßung</label>
+                          <textarea
+                            value={widgetGreeting}
+                            onChange={(e) => setWidgetGreeting(e.target.value)}
+                            rows={3}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+                            placeholder="z.B. Hallo! Wie können wir dir helfen?"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="rounded-xl border border-gray-200 bg-white overflow-hidden shadow-sm">
+                      <iframe
+                        key={widgetPreviewNonce}
+                        src={widgetPreviewUrl}
+                        title="Widget Preview"
+                        className="w-full h-[560px]"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'settings' && (
+                <form onSubmit={handleSaveSettings} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Bot Name</label>
+                    <input
+                      type="text"
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Beschreibung</label>
+                    <textarea
+                      value={editDescription}
+                      onChange={(e) => setEditDescription(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      rows={2}
+                      placeholder="Optionale Beschreibung..."
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Logo URL</label>
+                    <input
+                      type="url"
+                      value={editLogoUrl}
+                      onChange={(e) => setEditLogoUrl(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      placeholder="https://example.com/logo.png"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <Palette className="inline h-4 w-4 mr-1" />
+                      Primärfarbe
+                    </label>
+                    <div className="flex gap-2 items-center">
+                      <input
+                        type="color"
+                        value={editPrimaryColor}
+                        onChange={(e) => setEditPrimaryColor(e.target.value)}
+                        className="h-10 w-20 border border-gray-300 rounded cursor-pointer"
+                      />
+                      <input
+                        type="text"
+                        value={editPrimaryColor}
+                        onChange={(e) => setEditPrimaryColor(e.target.value)}
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        placeholder="#4F46E5"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Custom System Prompt (Optional)
+                    </label>
+                    <textarea
+                      value={editSystemPrompt}
+                      onChange={(e) => setEditSystemPrompt(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent font-mono text-sm"
+                      rows={6}
+                      placeholder="Leer lassen für Standard-Prompt. Beispiel:&#10;Du bist ein Support-Bot für TrendingMedia.&#10;- Sprich aus Unternehmensperspektive (wir, uns)&#10;- Halte Antworten kurz und präzise&#10;- Antworte nur basierend auf den bereitgestellten Infos"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Falls leer, wird der Standard-Prompt verwendet (Unternehmensperspektive, kurze Antworten)
+                    </p>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={saving}
+                    className="w-full bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                  >
+                    {saving ? 'Speichern...' : 'Einstellungen speichern'}
+                  </button>
+                </form>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Create Modal */}
       {showCreateModal && (
