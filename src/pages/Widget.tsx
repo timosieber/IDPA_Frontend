@@ -7,6 +7,8 @@ type ChatMessage = {
   sources?: ChatSource[]
 }
 
+type AvatarType = 'robot' | 'human' | 'pencil'
+
 const isValidHexColor = (value: string) => /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(value)
 
 type TextToken =
@@ -84,6 +86,33 @@ const renderContentWithLinks = (content: string, primaryColor: string) => {
   })
 }
 
+const AvatarIcon = ({ type, color }: { type: AvatarType; color: string }) => {
+  const common = { width: 18, height: 18, viewBox: '0 0 24 24', fill: 'none', xmlns: 'http://www.w3.org/2000/svg' }
+  if (type === 'human') {
+    return (
+      <svg {...common}>
+        <path d="M20 21a8 8 0 10-16 0" stroke={color} strokeWidth="2" strokeLinecap="round" />
+        <path d="M12 13a4 4 0 100-8 4 4 0 000 8z" stroke={color} strokeWidth="2" strokeLinecap="round" />
+      </svg>
+    )
+  }
+  if (type === 'pencil') {
+    return (
+      <svg {...common}>
+        <path d="M12 20h9" stroke={color} strokeWidth="2" strokeLinecap="round" />
+        <path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4L16.5 3.5z" stroke={color} strokeWidth="2" strokeLinejoin="round" />
+      </svg>
+    )
+  }
+  return (
+    <svg {...common}>
+      <path d="M12 8V4H8" stroke={color} strokeWidth="2" strokeLinecap="round" />
+      <path d="M4 13a8 8 0 0116 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5z" stroke={color} strokeWidth="2" strokeLinejoin="round" />
+      <path d="M9 14h.01M15 14h.01" stroke={color} strokeWidth="3" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 const extractSourceRef = (source: ChatSource): { title: string; url: string; score: number } | null => {
   const meta = source.metadata || {}
   const titleRaw =
@@ -127,10 +156,17 @@ export default function Widget() {
   const primaryColorParam = q.get('primaryColor') || ''
   const headerTitleParam = q.get('title') || ''
   const greetingParam = q.get('greeting') || ''
+  const avatarParam = q.get('avatar') || ''
 
-  const primaryColor = isValidHexColor(primaryColorParam) ? primaryColorParam : '#4F46E5'
-  const headerTitle = headerTitleParam.trim() || 'Chat'
+  const [botName, setBotName] = useState<string>('')
+  const [botTheme, setBotTheme] = useState<Record<string, unknown> | null>(null)
+
+  const themePrimary = typeof botTheme?.primaryColor === 'string' ? (botTheme.primaryColor as string) : ''
+  const primaryColor = isValidHexColor(primaryColorParam) ? primaryColorParam : isValidHexColor(themePrimary) ? themePrimary : '#4F46E5'
+  const headerTitle = headerTitleParam.trim() || botName || 'Chat'
   const greeting = greetingParam.trim()
+  const themeAvatar = typeof botTheme?.avatarType === 'string' ? (botTheme.avatarType as string) : ''
+  const avatarType: AvatarType = (avatarParam || themeAvatar) === 'human' ? 'human' : (avatarParam || themeAvatar) === 'pencil' ? 'pencil' : 'robot'
 
   const [sessionId, setSessionId] = useState<string>('')
   const [token, setToken] = useState<string>('')
@@ -153,6 +189,8 @@ export default function Widget() {
         if (!mounted) return
         setSessionId(s.sessionId)
         setToken(s.token)
+        setBotName(s.chatbot?.name ?? '')
+        setBotTheme((s.chatbot?.theme as Record<string, unknown> | null | undefined) ?? null)
         setReady(true)
         setError(null)
         if (greeting) {
@@ -191,6 +229,7 @@ export default function Widget() {
     try {
       const res = await sendMessage({ sessionId, token, message: msg })
       setMessages((m) => [...m, { role: 'assistant', content: res.answer, sources: res.sources }])
+      setOpenSourcesFor(null)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Fehler beim Senden')
     } finally {
@@ -206,9 +245,14 @@ export default function Widget() {
       <div className="h-full flex flex-col">
         <header className="px-4 py-3 border-b bg-white/70 backdrop-blur">
           <div className="flex items-center justify-between">
-            <div>
-              <div className="text-sm font-semibold">{headerTitle}</div>
-              <div className="text-[11px] text-gray-500 truncate max-w-[240px]">{chatbotId ? `Bot: ${chatbotId}` : 'Kein Bot'}</div>
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="h-8 w-8 rounded-full bg-white ring-1 ring-gray-200 shadow-sm flex items-center justify-center">
+                <AvatarIcon type={avatarType} color={primaryColor} />
+              </div>
+              <div className="min-w-0">
+                <div className="text-sm font-semibold truncate">{headerTitle}</div>
+                <div className="text-[11px] text-gray-500 truncate max-w-[240px]">Support-Chat</div>
+              </div>
             </div>
             <div
               className={`h-2.5 w-2.5 rounded-full ${ready ? 'bg-green-500' : error ? 'bg-red-500' : 'animate-pulse'}`}
@@ -232,66 +276,90 @@ export default function Widget() {
           {error && <div className="text-sm text-red-600">{error}</div>}
           {messages.map((m, i) => (
             <div key={i} className={`max-w-[86%] ${m.role === 'user' ? 'ml-auto' : 'mr-auto'}`}>
-              <div
-                className={`rounded-2xl px-3 py-2 shadow-sm ring-1 ${
-                  m.role === 'user'
-                    ? 'text-white ring-indigo-600/20'
-                    : 'bg-white text-gray-900 ring-gray-200'
-                }`}
-                style={m.role === 'user' ? { backgroundColor: primaryColor } : undefined}
-              >
-                <div className="whitespace-pre-wrap text-sm leading-relaxed">
-                  {renderContentWithLinks(m.content, m.role === 'user' ? '#FFFFFF' : primaryColor)}
-                </div>
-
-                {m.role === 'assistant' && uniqueSources(m.sources).length > 0 && (
-                  <div className="mt-2 flex justify-end">
-                    <div className="relative group">
-                      <button
-                        type="button"
-                        onClick={() => setOpenSourcesFor((prev) => (prev === i ? null : i))}
-                        className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-[11px] font-medium text-gray-700 shadow-sm hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                      >
-                        Quellen
-                        <span className="rounded-full bg-white px-1.5 py-0.5 text-[10px] text-gray-600 ring-1 ring-gray-200">
-                          {uniqueSources(m.sources).length}
-                        </span>
-                      </button>
-
-                      <div
-                        className={`absolute bottom-full right-0 z-20 mb-2 w-[260px] rounded-xl border border-gray-200 bg-white p-2 shadow-lg ${
-                          openSourcesFor === i ? 'block' : 'hidden group-hover:block group-focus-within:block'
-                        }`}
-                      >
-                        <div className="px-1 pb-1 text-[11px] font-semibold text-gray-700">Quellen</div>
-                        <ul className="max-h-40 overflow-auto">
-                          {uniqueSources(m.sources).map((s) => (
-                            <li key={`${s.title}::${s.url}`} className="px-1 py-1">
-                              <a
-                                href={s.url}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="block rounded-lg px-2 py-1.5 text-xs hover:bg-indigo-50"
-                                title={s.url}
-                                style={{
-                                  color: primaryColor,
-                                  backgroundColor: 'transparent',
-                                }}
-                              >
-                                <div className="font-medium text-gray-900 truncate">{s.title}</div>
-                                <div className="text-[11px] text-gray-500 truncate">{s.url}</div>
-                              </a>
-                            </li>
-                          ))}
-                        </ul>
-                        <div className="px-1 pt-1 text-[10px] text-gray-400">Hover oder klicken zum Schließen.</div>
-                      </div>
-                    </div>
+              <div className={`flex gap-2 items-end ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                {m.role === 'assistant' && (
+                  <div className="h-7 w-7 rounded-full bg-white ring-1 ring-gray-200 shadow-sm flex items-center justify-center">
+                    <AvatarIcon type={avatarType} color={primaryColor} />
                   </div>
                 )}
+                <div
+                  className={`rounded-2xl px-3 py-2 shadow-sm ring-1 ${
+                    m.role === 'user'
+                      ? 'text-white ring-indigo-600/20'
+                      : 'bg-white text-gray-900 ring-gray-200'
+                  }`}
+                  style={m.role === 'user' ? { backgroundColor: primaryColor } : undefined}
+                >
+                  <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                    {renderContentWithLinks(m.content, m.role === 'user' ? '#FFFFFF' : primaryColor)}
+                  </div>
+
+                  {m.role === 'assistant' && uniqueSources(m.sources).length > 0 && (
+                    <div className="mt-2 flex justify-end">
+                      <div className="relative group">
+                        <button
+                          type="button"
+                          onClick={() => setOpenSourcesFor((prev) => (prev === i ? null : i))}
+                          className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-[11px] font-medium text-gray-700 shadow-sm hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        >
+                          Quellen
+                          <span className="rounded-full bg-white px-1.5 py-0.5 text-[10px] text-gray-600 ring-1 ring-gray-200">
+                            {uniqueSources(m.sources).length}
+                          </span>
+                        </button>
+
+                        <div
+                          className={`absolute bottom-full right-0 z-20 mb-2 w-[260px] rounded-xl border border-gray-200 bg-white p-2 shadow-lg ${
+                            openSourcesFor === i ? 'block' : 'hidden group-hover:block group-focus-within:block'
+                          }`}
+                        >
+                          <div className="px-1 pb-1 text-[11px] font-semibold text-gray-700">Quellen</div>
+                          <ul className="max-h-40 overflow-auto">
+                            {uniqueSources(m.sources).map((s) => (
+                              <li key={`${s.title}::${s.url}`} className="px-1 py-1">
+                                <a
+                                  href={s.url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="block rounded-lg px-2 py-1.5 text-xs hover:bg-indigo-50"
+                                  title={s.url}
+                                  style={{
+                                    color: primaryColor,
+                                    backgroundColor: 'transparent',
+                                  }}
+                                >
+                                  <div className="font-medium text-gray-900 truncate">{s.title}</div>
+                                  <div className="text-[11px] text-gray-500 truncate">{s.url}</div>
+                                </a>
+                              </li>
+                            ))}
+                          </ul>
+                          <div className="px-1 pt-1 text-[10px] text-gray-400">Hover oder klicken zum Schließen.</div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           ))}
+
+          {sending && (
+            <div className="max-w-[86%] mr-auto">
+              <div className="flex gap-2 items-end">
+                <div className="h-7 w-7 rounded-full bg-white ring-1 ring-gray-200 shadow-sm flex items-center justify-center">
+                  <AvatarIcon type={avatarType} color={primaryColor} />
+                </div>
+                <div className="rounded-2xl px-3 py-2 bg-white text-gray-900 ring-1 ring-gray-200 shadow-sm">
+                  <div className="flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full bg-gray-300 animate-bounce [animation-delay:-0.2s]" />
+                    <span className="h-2 w-2 rounded-full bg-gray-300 animate-bounce [animation-delay:-0.1s]" />
+                    <span className="h-2 w-2 rounded-full bg-gray-300 animate-bounce" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </main>
         <form onSubmit={onSend} className="p-3 border-t bg-white/70 backdrop-blur flex gap-2">
           <input

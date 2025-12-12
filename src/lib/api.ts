@@ -96,7 +96,7 @@ export async function deleteChatbot(id: string): Promise<void> {
   if (!res.ok) throw new Error(`Fehler beim Löschen des Chatbots (${res.status})`)
 }
 
-export async function createSession(chatbotId: string): Promise<{ sessionId: string; token: string; expiresAt: string }> {
+export async function createSession(chatbotId: string): Promise<{ sessionId: string; token: string; expiresAt: string; chatbotId: string; chatbot?: Pick<Chatbot, 'id' | 'name' | 'theme'> }> {
   const res = await fetch(`${BACKEND_URL}/api/chat/sessions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

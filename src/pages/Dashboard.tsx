@@ -54,6 +54,7 @@ export default function Dashboard() {
   const [editSystemPrompt, setEditSystemPrompt] = useState('')
   const [editLogoUrl, setEditLogoUrl] = useState('')
   const [editPrimaryColor, setEditPrimaryColor] = useState('#4F46E5')
+  const [editAvatarType, setEditAvatarType] = useState<'robot' | 'human' | 'pencil'>('robot')
   const [saving, setSaving] = useState(false)
 
   // Background Scraping State
@@ -86,10 +87,11 @@ export default function Dashboard() {
       primaryColor: editPrimaryColor,
       title: editName || selectedBot.name,
       greeting: widgetGreeting,
+      avatar: editAvatarType,
       v: String(widgetPreviewNonce),
     })
     return `${base}?${params.toString()}`
-  }, [editName, editPrimaryColor, selectedBot, widgetGreeting, widgetPreviewNonce])
+  }, [editAvatarType, editName, editPrimaryColor, selectedBot, widgetGreeting, widgetPreviewNonce])
 
   const load = async ({ silent }: { silent?: boolean } = {}) => {
     if (!silent) setLoading(true)
@@ -171,8 +173,10 @@ export default function Dashboard() {
       setEditDescription(selectedBot.description || '')
       setEditSystemPrompt(selectedBot.systemPrompt || '')
       setEditLogoUrl(selectedBot.logoUrl || '')
-      const theme = selectedBot.theme as { primaryColor?: unknown } | null | undefined
+      const theme = selectedBot.theme as { primaryColor?: unknown; avatarType?: unknown } | null | undefined
       setEditPrimaryColor(typeof theme?.primaryColor === 'string' ? theme.primaryColor : '#4F46E5')
+      const avatar = theme?.avatarType
+      setEditAvatarType(avatar === 'human' ? 'human' : avatar === 'pencil' ? 'pencil' : 'robot')
       setWidgetPreviewNonce((n) => n + 1)
       const interval = setInterval(() => loadBotSources(selectedBot.id), 3000)
       return () => clearInterval(interval)
@@ -311,7 +315,7 @@ export default function Dashboard() {
         description: editDescription || undefined,
         systemPrompt: editSystemPrompt || undefined,
         logoUrl: editLogoUrl || undefined,
-        theme: { primaryColor: editPrimaryColor },
+        theme: { primaryColor: editPrimaryColor, avatarType: editAvatarType },
       })
       setSelectedBot(updated)
       await load()
@@ -700,6 +704,28 @@ export default function Dashboard() {
                     </div>
                   </div>
 
+                  {/* Avatar */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Icon im Chat-Widget</label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {(['robot', 'human', 'pencil'] as const).map((t) => (
+                        <button
+                          key={t}
+                          type="button"
+                          onClick={() => setEditAvatarType(t)}
+                          className={`px-3 py-2 rounded-lg border text-sm font-medium ${
+                            editAvatarType === t
+                              ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
+                              : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+                          }`}
+                        >
+                          {t === 'robot' ? 'Roboter' : t === 'human' ? 'Mensch' : 'Zeichner'}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">Wird im Widget-Header und bei Bot-Nachrichten angezeigt.</p>
+                  </div>
+
                   {/* System Prompt */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -745,7 +771,7 @@ export default function Dashboard() {
                             placeholder="z.B. Hallo! Wie können wir dir helfen?"
                           />
                           <div className="text-[11px] text-gray-500 mt-1">
-                            Titel und Primärfarbe kommen aus den Einstellungen oben.
+                            Titel, Primärfarbe und Icon kommen aus den Einstellungen oben.
                           </div>
                         </div>
 
@@ -960,6 +986,25 @@ export default function Dashboard() {
                           </div>
                         </div>
                         <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">Icon</label>
+                          <div className="grid grid-cols-3 gap-2">
+                            {(['robot', 'human', 'pencil'] as const).map((t) => (
+                              <button
+                                key={t}
+                                type="button"
+                                onClick={() => setEditAvatarType(t)}
+                                className={`px-3 py-2 rounded-lg border text-xs font-medium ${
+                                  editAvatarType === t
+                                    ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
+                                    : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+                                }`}
+                              >
+                                {t === 'robot' ? 'Roboter' : t === 'human' ? 'Mensch' : 'Zeichner'}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        <div>
                           <label className="block text-xs font-medium text-gray-700 mb-1">Begrüßung</label>
                           <textarea
                             value={widgetGreeting}
@@ -1039,6 +1084,27 @@ export default function Dashboard() {
                         placeholder="#4F46E5"
                       />
                     </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Icon im Chat-Widget</label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {(['robot', 'human', 'pencil'] as const).map((t) => (
+                        <button
+                          key={t}
+                          type="button"
+                          onClick={() => setEditAvatarType(t)}
+                          className={`px-3 py-2 rounded-lg border text-sm font-medium ${
+                            editAvatarType === t
+                              ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
+                              : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+                          }`}
+                        >
+                          {t === 'robot' ? 'Roboter' : t === 'human' ? 'Mensch' : 'Zeichner'}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">Wird im Widget-Header und bei Bot-Nachrichten angezeigt.</p>
                   </div>
 
                   <div>
