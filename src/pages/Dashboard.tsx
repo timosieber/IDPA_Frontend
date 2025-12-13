@@ -228,6 +228,7 @@ export default function Dashboard() {
     setShowCreateModal(false)
     setScrapingBots((prev) => new Set(prev).add(newChatbot.id))
     setSelectedBot(newChatbot)
+    setDrawerOpen(true)
     setSuccess(`Chatbot "${newChatbot.name}" wird erstellt - Scraping läuft im Hintergrund...`)
 
     // Subscribe to backend provisioning events (push, no polling)
@@ -287,7 +288,10 @@ export default function Dashboard() {
 
   const handleFinish = () => {
     setShowCreateModal(false)
-    setSelectedBot(newChatbot)
+    if (newChatbot) {
+      setSelectedBot(newChatbot)
+      setDrawerOpen(true)
+    }
     setNewChatbot(null)
   }
 
@@ -441,9 +445,9 @@ export default function Dashboard() {
         </div>
 
         {/* Chatbots Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 gap-6">
           {/* Chatbot List */}
-          <div className="lg:col-span-2 bg-white rounded-lg shadow">
+          <div className="bg-white rounded-lg shadow">
             <div className="p-6 border-b border-gray-200">
               <div className="flex items-center justify-between">
                 <h2 className="text-xl font-semibold text-gray-900">Ihre Chatbots</h2>
@@ -523,7 +527,7 @@ export default function Dashboard() {
           </div>
 
           {/* Details Panel */}
-          <div className="hidden lg:block bg-white rounded-lg shadow">
+          <div className="hidden">
             <div className="p-6 border-b border-gray-200">
               {selectedBot ? (
                 <div className="flex gap-2">
@@ -810,16 +814,16 @@ export default function Dashboard() {
         </div>
       </main>
 
-      {/* Mobile Bottom Drawer (Details/Settings/Preview) */}
+      {/* Responsive Drawer (mobile bottom sheet, desktop side drawer) */}
       {selectedBot && drawerOpen && (
-        <div className="lg:hidden">
+        <div>
           <button
             type="button"
             aria-label="Close drawer"
             onClick={() => setDrawerOpen(false)}
             className="fixed inset-0 bg-black/30 z-40"
           />
-          <div className="fixed inset-x-0 bottom-0 z-50 max-h-[88vh] rounded-t-2xl bg-white shadow-2xl border-t border-gray-200 overflow-hidden">
+          <div className="fixed inset-x-0 bottom-0 z-50 max-h-[88vh] rounded-t-2xl bg-white shadow-2xl border-t border-gray-200 overflow-hidden lg:inset-y-0 lg:left-auto lg:right-0 lg:bottom-auto lg:h-full lg:w-[560px] lg:max-h-none lg:rounded-none lg:border-t-0 lg:border-l">
             <div className="px-4 pt-3 pb-2 border-b border-gray-200">
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
@@ -876,7 +880,7 @@ export default function Dashboard() {
               </div>
             </div>
 
-            <div className="p-4 overflow-auto max-h-[calc(88vh-120px)]">
+            <div className="p-4 overflow-auto max-h-[calc(88vh-120px)] lg:max-h-[calc(100vh-120px)]">
               {activeTab === 'details' && (
                 <div className="space-y-4">
                   {isBotPreparing(selectedBot) && (
