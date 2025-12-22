@@ -1,5 +1,7 @@
 import express from 'express'
 import path from 'node:path'
+import { Readable } from 'node:stream'
+import { pipeline } from 'node:stream/promises'
 import { fileURLToPath } from 'node:url'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -43,10 +45,14 @@ app.use('/api', async (req, res) => {
     delete headers['host']
     delete headers['content-length']
 
+    const abortController = new AbortController()
+    req.on('close', () => abortController.abort())
+
     const init = {
       method: req.method,
       headers,
       redirect: 'manual',
+      signal: abortController.signal,
     }
 
     if (!['GET', 'HEAD'].includes(req.method)) {
@@ -71,6 +77,17 @@ app.use('/api', async (req, res) => {
           if (key.toLowerCase() === 'transfer-encoding') return
           res.setHeader(key, value)
         })
+
+        const contentType = response.headers.get('content-type') || ''
+        if (contentType.includes('text/event-stream') && response.body) {
+          res.flushHeaders?.()
+          const stream = Readable.fromWeb(response.body)
+          pipeline(stream, res).catch(() => {
+            // ignore disconnects / aborted streams
+          })
+          return
+        }
+
         const buffer = Buffer.from(await response.arrayBuffer())
         return res.send(buffer)
       } catch (err) {
