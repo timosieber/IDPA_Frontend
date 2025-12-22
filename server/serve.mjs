@@ -13,6 +13,9 @@ const app = express()
 const PORT = process.env.PORT || 5173
 const INTERNAL_BACKEND_URL = process.env.INTERNAL_BACKEND_URL
 const FALLBACK_BACKEND_URLS = [
+  // Railway often sets backend PORT to 8080 in production; keep 4000 as legacy default.
+  'http://idpa-backend.railway.internal:8080',
+  'http://idpa_backend.railway.internal:8080',
   'http://idpa-backend.railway.internal:4000',
   'http://idpa_backend.railway.internal:4000',
 ]
@@ -37,7 +40,9 @@ app.use('/api', (req, res, next) => {
 // Very small proxy for /api/* to internal backend URL
 app.use('/api', async (req, res) => {
   try {
-    const baseUrls = INTERNAL_BACKEND_URL ? [INTERNAL_BACKEND_URL] : FALLBACK_BACKEND_URLS
+    const baseUrls = Array.from(
+      new Set([...(INTERNAL_BACKEND_URL ? [INTERNAL_BACKEND_URL] : []), ...FALLBACK_BACKEND_URLS]),
+    )
     const errors = []
 
     const headers = { ...req.headers }

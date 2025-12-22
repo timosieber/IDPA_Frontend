@@ -81,6 +81,6 @@ Dieses Frontend enthält einen eingebauten Express-Proxy, damit das Backend inte
 2. Setze Environment Variablen im Frontend-Service:
    - `VITE_APPWRITE_PROJECT_ID`
    - `VITE_APPWRITE_API_ENDPOINT`
-   - `INTERNAL_BACKEND_URL` (z. B. `http://idpa-backend.railway.internal:4000` — `idpa-backend` durch deinen Backend-Service-Namen ersetzen)
+   - `INTERNAL_BACKEND_URL` (z. B. `http://idpa-backend.railway.internal:8080` — Port muss dem `PORT` vom Backend-Service entsprechen; oft `8080` auf Railway)
 3. Start Command des Frontends: `npm start` (läuft `server/serve.mjs`)
 4. Das Frontend servt `dist/` und proxyt `/api/*` an `INTERNAL_BACKEND_URL`
