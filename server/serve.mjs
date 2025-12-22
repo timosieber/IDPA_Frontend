@@ -9,7 +9,11 @@ const app = express()
 
 // Configuration
 const PORT = process.env.PORT || 5173
-const INTERNAL_BACKEND_URL = process.env.INTERNAL_BACKEND_URL || 'http://idpa_backend.railway.internal:4000'
+const INTERNAL_BACKEND_URL = process.env.INTERNAL_BACKEND_URL
+const FALLBACK_BACKEND_URLS = [
+  'http://idpa-backend.railway.internal:4000',
+  'http://idpa_backend.railway.internal:4000',
+]
 
 // Security / framing for widget
 app.use((req, res, next) => {
@@ -31,7 +35,8 @@ app.use('/api', (req, res, next) => {
 // Very small proxy for /api/* to internal backend URL
 app.use('/api', async (req, res) => {
   try {
-    const targetUrl = INTERNAL_BACKEND_URL + req.originalUrl
+    const baseUrls = INTERNAL_BACKEND_URL ? [INTERNAL_BACKEND_URL] : FALLBACK_BACKEND_URLS
+    const errors = []
 
     const headers = { ...req.headers }
     // Remove hop-by-hop headers
@@ -56,15 +61,29 @@ app.use('/api', async (req, res) => {
       }
     }
 
-    const response = await fetch(targetUrl, init)
-    // Forward status and headers
-    res.status(response.status)
-    response.headers.forEach((value, key) => {
-      if (key.toLowerCase() === 'transfer-encoding') return
-      res.setHeader(key, value)
+    for (const baseUrl of baseUrls) {
+      const targetUrl = baseUrl + req.originalUrl
+      try {
+        const response = await fetch(targetUrl, init)
+        // Forward status and headers
+        res.status(response.status)
+        response.headers.forEach((value, key) => {
+          if (key.toLowerCase() === 'transfer-encoding') return
+          res.setHeader(key, value)
+        })
+        const buffer = Buffer.from(await response.arrayBuffer())
+        return res.send(buffer)
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err)
+        errors.push(`${baseUrl}: ${msg}`)
+      }
+    }
+
+    res.status(502).json({
+      error: 'Proxy-Fehler: Backend nicht erreichbar',
+      details: errors,
+      hint: 'Setze INTERNAL_BACKEND_URL auf http://<backend-service-name>.railway.internal:4000',
     })
-    const buffer = Buffer.from(await response.arrayBuffer())
-    res.send(buffer)
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Proxy-Fehler'
     res.status(502).json({ error: msg })
@@ -84,5 +103,6 @@ app.use((req, res, next) => {
 
 app.listen(PORT, () => {
   // eslint-disable-next-line no-console
-  console.log(`Frontend server listening on :${PORT} (proxy -> ${INTERNAL_BACKEND_URL})`)
+  const baseUrls = INTERNAL_BACKEND_URL ? [INTERNAL_BACKEND_URL] : FALLBACK_BACKEND_URLS
+  console.log(`Frontend server listening on :${PORT} (proxy -> ${baseUrls.join(' | ')})`)
 })
