@@ -262,6 +262,8 @@ export default function Dashboard() {
         }
       },
     }).catch((err) => {
+      // Ignore AbortError - these are expected when stream is cancelled intentionally
+      if (err instanceof Error && err.name === 'AbortError') return
       console.error('Provisioning-Stream Fehler:', err)
     })
 
