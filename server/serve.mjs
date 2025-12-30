@@ -53,14 +53,19 @@ app.use('/api', async (req, res) => {
     delete headers['host']
     delete headers['content-length']
 
+    // Only abort on client disconnect for streaming requests (GET, SSE)
+    // For mutations (POST, PUT, PATCH, DELETE), let them complete even if client disconnects
     const abortController = new AbortController()
-    req.on('close', () => abortController.abort())
+    const isMutation = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)
+    if (!isMutation) {
+      req.on('close', () => abortController.abort())
+    }
 
     const init = {
       method: req.method,
       headers,
       redirect: 'manual',
-      signal: abortController.signal,
+      signal: isMutation ? undefined : abortController.signal,
     }
 
     if (!['GET', 'HEAD'].includes(req.method)) {
