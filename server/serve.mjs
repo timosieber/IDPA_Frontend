@@ -39,6 +39,9 @@ app.use('/api', (req, res, next) => {
 
 // Very small proxy for /api/* to internal backend URL
 app.use('/api', async (req, res) => {
+  const startTime = Date.now()
+  console.log(`[PROXY] ${req.method} ${req.originalUrl} - Starting...`)
+
   try {
     const baseUrls = Array.from(
       new Set([...(INTERNAL_BACKEND_URL ? [INTERNAL_BACKEND_URL] : []), ...FALLBACK_BACKEND_URLS]),
@@ -75,7 +78,9 @@ app.use('/api', async (req, res) => {
     for (const baseUrl of baseUrls) {
       const targetUrl = baseUrl + req.originalUrl
       try {
+        console.log(`[PROXY] Trying ${targetUrl}...`)
         const response = await fetch(targetUrl, init)
+        console.log(`[PROXY] ${req.method} ${req.originalUrl} -> ${response.status} (${Date.now() - startTime}ms)`)
         // Forward status and headers
         res.status(response.status)
         response.headers.forEach((value, key) => {
@@ -97,10 +102,12 @@ app.use('/api', async (req, res) => {
         return res.send(buffer)
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)
+        console.log(`[PROXY] Failed ${targetUrl}: ${msg}`)
         errors.push(`${baseUrl}: ${msg}`)
       }
     }
 
+    console.error(`[PROXY] ${req.method} ${req.originalUrl} -> 502 ALL BACKENDS FAILED (${Date.now() - startTime}ms)`, errors)
     res.status(502).json({
       error: 'Proxy-Fehler: Backend nicht erreichbar',
       details: errors,
