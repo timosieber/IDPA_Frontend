@@ -112,6 +112,31 @@ export type ChatSource = {
   score: number
 }
 
+type RagClaim = {
+  text: string
+  supporting_chunk_ids: string[]
+}
+
+type RagSource = {
+  chunk_id: string
+  title: string
+  canonical_url: string | null
+  original_url: string | null
+  uri: string | null
+  page_no: number | null
+  start_offset: number
+  end_offset: number
+}
+
+type RagResponse = {
+  claims: RagClaim[]
+  unknown: boolean
+  reason?: string
+  debug_id: string
+  context_truncated: boolean
+  sources: RagSource[]
+}
+
 export type SendMessageResponse = {
   sessionId: string | null
   answer: string
@@ -131,7 +156,31 @@ export async function sendMessage(params: {
     body: JSON.stringify({ sessionId: params.sessionId, message: params.message, history: params.history }),
   })
   if (!res.ok) throw new Error(`Fehler beim Senden der Nachricht (${res.status})`)
-  return res.json()
+
+  const raw = (await res.json()) as { sessionId: string | null; rag: RagResponse }
+
+  // Transform RAG response to the expected SendMessageResponse format
+  const answer = raw.rag.unknown
+    ? raw.rag.reason || 'Das kann ich leider nicht beantworten.'
+    : raw.rag.claims.map((c) => c.text).join('\n\n')
+
+  const sources: ChatSource[] = raw.rag.sources.map((s) => ({
+    content: '',
+    metadata: {
+      chunk_id: s.chunk_id,
+      title: s.title,
+      sourceUrl: s.canonical_url || s.original_url || s.uri || '',
+      uri: s.uri || '',
+      page_no: s.page_no,
+    },
+    score: 1, // RAG sources don't have scores, default to 1
+  }))
+
+  return {
+    sessionId: raw.sessionId,
+    answer,
+    sources,
+  }
 }
 
 // Knowledge Sources API

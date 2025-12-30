@@ -133,7 +133,7 @@ const extractSourceRef = (source: ChatSource): { title: string; url: string; sco
   const title = String(titleRaw).trim()
   const url = String(urlRaw).trim()
   if (!url || url === 'N/A') return null
-  return { title, url, score: source.score }
+  return { title, url, score: source.score ?? 0 }
 }
 
 const uniqueSources = (sources: ChatSource[] | undefined) => {
