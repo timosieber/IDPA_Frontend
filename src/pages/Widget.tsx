@@ -12,6 +12,7 @@ type AvatarType = 'robot' | 'human' | 'pencil'
 const isValidHexColor = (value: string) => /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(value)
 
 const STORAGE_KEY = 'idpa_widget_messages_v1'
+const TERMS_ACCEPTED_KEY = 'idpa_widget_terms_accepted_v1'
 const MAX_HISTORY_MESSAGES = 12
 
 type TextToken =
@@ -179,7 +180,23 @@ export default function Widget() {
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
   const [openSourcesFor, setOpenSourcesFor] = useState<number | null>(null)
+  const [termsAccepted, setTermsAccepted] = useState<boolean>(() => {
+    try {
+      return sessionStorage.getItem(TERMS_ACCEPTED_KEY) === 'true'
+    } catch {
+      return false
+    }
+  })
   const isPreparing = !ready && !error
+
+  const handleAcceptTerms = () => {
+    setTermsAccepted(true)
+    try {
+      sessionStorage.setItem(TERMS_ACCEPTED_KEY, 'true')
+    } catch {
+      // ignore
+    }
+  }
 
   useEffect(() => {
     try {
@@ -272,6 +289,55 @@ export default function Widget() {
     } finally {
       setSending(false)
     }
+  }
+
+  // Terms acceptance overlay
+  if (!termsAccepted) {
+    return (
+      <div
+        className="h-screen w-screen bg-gradient-to-b from-indigo-50 via-white to-white text-gray-900"
+        style={{ '--primary': primaryColor } as CSSProperties}
+      >
+        <div className="h-full flex flex-col items-center justify-center p-6">
+          <div className="max-w-md w-full bg-white rounded-2xl shadow-lg border border-gray-200 p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="h-10 w-10 rounded-full bg-indigo-50 ring-1 ring-indigo-100 flex items-center justify-center">
+                <AvatarIcon type={avatarType} color={primaryColor} />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">{headerTitle}</h2>
+                <p className="text-sm text-gray-500">Support-Chat</p>
+              </div>
+            </div>
+
+            <div className="mb-6">
+              <h3 className="text-sm font-medium text-gray-900 mb-2">Nutzungsbedingungen</h3>
+              <div className="text-sm text-gray-600 space-y-2 bg-gray-50 rounded-lg p-3 border border-gray-100 max-h-48 overflow-auto">
+                <p>Willkommen! Bevor Sie diesen Chat nutzen, beachten Sie bitte:</p>
+                <ul className="list-disc list-inside space-y-1 text-xs">
+                  <li>Dieser Chatbot wird von einer KI betrieben und kann Fehler machen.</li>
+                  <li>Die Antworten dienen nur zur Information und ersetzen keine professionelle Beratung.</li>
+                  <li>Ihre Nachrichten werden zur Verarbeitung an unsere Server übermittelt.</li>
+                  <li>Bitte geben Sie keine sensiblen persönlichen Daten ein.</li>
+                </ul>
+              </div>
+            </div>
+
+            <button
+              onClick={handleAcceptTerms}
+              className="w-full rounded-xl text-white px-4 py-3 text-sm font-medium shadow-sm hover:opacity-90 transition-opacity"
+              style={{ backgroundColor: primaryColor }}
+            >
+              Akzeptieren und Chat starten
+            </button>
+
+            <p className="mt-3 text-xs text-gray-400 text-center">
+              Mit dem Klick auf "Akzeptieren" stimmen Sie den Nutzungsbedingungen zu.
+            </p>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
