@@ -172,24 +172,34 @@ export default function Dashboard() {
       setEditAvatarType(avatar === 'human' ? 'human' : avatar === 'pencil' ? 'pencil' : 'robot')
       setWidgetPreviewNonce((n) => n + 1)
 
-      const controller = new AbortController()
-      void streamProvisioningEvents({
-        chatbotId: selectedBot.id,
-        signal: controller.signal,
-        onEvent: (evt) => {
-          if (evt.chatbotId !== selectedBot.id) return
-          if (evt.type === 'completed' || evt.type === 'failed' || evt.type === 'snapshot') {
-            loadBotSources(selectedBot.id)
-            void load({ silent: true })
-          }
-        },
-      }).catch((err) => {
-        if (err?.name !== 'AbortError') {
-          console.error('SSE stream error:', err)
-        }
-      })
+      // Only subscribe to SSE if bot is not yet ACTIVE (still processing)
+      // This prevents unnecessary connections for already-active bots
+      const needsStatusUpdates = selectedBot.status !== 'ACTIVE'
+      let controller: AbortController | null = null
 
-      return () => controller.abort()
+      if (needsStatusUpdates) {
+        controller = new AbortController()
+        void streamProvisioningEvents({
+          chatbotId: selectedBot.id,
+          signal: controller.signal,
+          onEvent: (evt) => {
+            if (evt.chatbotId !== selectedBot.id) return
+            // Only reload on actual status changes, NOT on snapshot (which is just initial state)
+            if (evt.type === 'completed' || evt.type === 'failed') {
+              loadBotSources(selectedBot.id)
+              void load({ silent: true })
+              // Close the SSE connection after completion
+              controller?.abort()
+            }
+          },
+        }).catch((err) => {
+          if (err?.name !== 'AbortError') {
+            console.error('SSE stream error:', err)
+          }
+        })
+      }
+
+      return () => controller?.abort()
     }
   }, [selectedBot])
 

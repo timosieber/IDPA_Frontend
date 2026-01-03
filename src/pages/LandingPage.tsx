@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Bot, ArrowRight, Globe, BarChart3, Menu, X, Settings, Brain, Rocket, ShieldCheck, Check } from 'lucide-react'
+import { Bot, ArrowRight, BarChart3, Menu, X, Settings, ShieldCheck, Check, Clock, Users, Link2, Layout } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '../contexts/AuthContext'
@@ -23,9 +23,7 @@ export default function LandingPage() {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
-      transition: {
-        staggerChildren: 0.1
-      }
+      transition: { staggerChildren: 0.1 }
     }
   }
 
@@ -34,17 +32,14 @@ export default function LandingPage() {
     visible: {
       y: 0,
       opacity: 1,
-      transition: {
-        type: "spring" as const,
-        stiffness: 100
-      }
+      transition: { type: "spring" as const, stiffness: 100 }
     }
   }
 
   return (
     <div className="min-h-screen bg-dark-950 text-white selection:bg-indigo-500/30">
       
-      {/* Hintergrund-Gradients - Dezent gehalten */}
+      {/* Hintergrund-Gradients */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-0 left-1/4 w-96 h-96 bg-indigo-500/10 rounded-full blur-[128px]" />
         <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-cyan-500/10 rounded-full blur-[128px]" />
@@ -60,10 +55,12 @@ export default function LandingPage() {
             <span className="text-lg font-semibold tracking-tight">ChatBot Studio</span>
           </div>
           
-          <nav className="hidden md:flex items-center gap-8">
+          <nav className="hidden lg:flex items-center gap-8">
             <a href="#benefits" className="text-sm font-medium text-gray-400 hover:text-white transition-colors">Nutzen</a>
             <a href="#process" className="text-sm font-medium text-gray-400 hover:text-white transition-colors">Funktionsweise</a>
-            <a href="#security" className="text-sm font-medium text-gray-400 hover:text-white transition-colors">Sicherheit</a>
+            <a href="#use-cases" className="text-sm font-medium text-gray-400 hover:text-white transition-colors">Einsatzbereiche</a>
+            <a href="#security" className="text-sm font-medium text-gray-400 hover:text-white transition-colors">Sicherheit & Kontrolle</a>
+            <a href="#pricing" className="text-sm font-medium text-gray-400 hover:text-white transition-colors">Preise</a>
             
             <div className="h-4 w-[1px] bg-white/10" />
             
@@ -79,13 +76,13 @@ export default function LandingPage() {
                 onClick={() => setIsLoginModalOpen(true)}
                 className="px-4 py-2 bg-white text-dark-950 hover:bg-gray-100 rounded-md text-sm font-medium transition-all"
               >
-                Anmelden
+                Zum Dashboard
               </button>
             )}
           </nav>
 
           <button 
-            className="md:hidden p-2 text-gray-400 hover:text-white"
+            className="lg:hidden p-2 text-gray-400 hover:text-white"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           >
             {mobileMenuOpen ? <X /> : <Menu />}
@@ -99,16 +96,14 @@ export default function LandingPage() {
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
-              className="md:hidden border-t border-white/5 bg-dark-950 px-6 py-4 space-y-4"
+              className="lg:hidden border-t border-white/5 bg-dark-950 px-6 py-4 space-y-4"
             >
               <a href="#benefits" className="block text-sm text-gray-400" onClick={() => setMobileMenuOpen(false)}>Nutzen</a>
               <a href="#process" className="block text-sm text-gray-400" onClick={() => setMobileMenuOpen(false)}>Funktionsweise</a>
+              <a href="#use-cases" className="block text-sm text-gray-400" onClick={() => setMobileMenuOpen(false)}>Einsatzbereiche</a>
+              <a href="#pricing" className="block text-sm text-gray-400" onClick={() => setMobileMenuOpen(false)}>Preise</a>
               <div className="pt-4 border-t border-white/5">
-                {user ? (
-                  <button onClick={() => navigate('/dashboard')} className="w-full py-2 bg-indigo-600 rounded-lg text-sm font-medium">Dashboard</button>
-                ) : (
-                  <button onClick={() => setIsLoginModalOpen(true)} className="w-full py-2 bg-indigo-600 rounded-lg text-sm font-medium">Anmelden</button>
-                )}
+                <button onClick={() => { setMobileMenuOpen(false); handleGetStarted(); }} className="w-full py-2 bg-white text-dark-950 rounded-lg text-sm font-medium italic">Zum Dashboard</button>
               </div>
             </motion.div>
           )}
@@ -124,196 +119,309 @@ export default function LandingPage() {
             initial="hidden"
             animate="visible"
             variants={containerVariants}
-            className="max-w-3xl mx-auto text-center"
+            className="max-w-4xl mx-auto text-center"
           >
-            <motion.div variants={itemVariants} className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-white/10 bg-white/5 text-gray-300 text-sm mb-8">
-              <span className="w-2 h-2 rounded-full bg-green-500"></span>
-              <span>System betriebsbereit</span>
-            </motion.div>
-            
             <motion.h1 variants={itemVariants} className="text-4xl md:text-6xl font-bold tracking-tight mb-6 leading-tight">
-              Automatisierter Kundendienst.<br />
-              <span className="text-gray-400">Ohne IT-Projekt.</span>
+              Automatisierter Kundendienst, <br />
+              <span className="text-gray-400 text-3xl md:text-5xl">der im Alltag entlastet.</span>
             </motion.h1>
             
-            <motion.p variants={itemVariants} className="text-lg text-gray-400 max-w-xl mx-auto mb-10 leading-relaxed">
-              Erstellen Sie einen KI-Assistenten auf Basis Ihrer Website-Inhalte.
-              Beantwortet Standardanfragen sofort, rund um die Uhr und in konsistenter Qualität.
+            <motion.p variants={itemVariants} className="text-xl font-medium text-gray-300 mb-4">
+              Ohne IT-Projekt. Ohne laufenden Mehraufwand.
             </motion.p>
+
+            <motion.div variants={itemVariants} className="text-lg text-gray-400 max-w-2xl mx-auto mb-10 space-y-4">
+              <p>
+                ChatBot Studio erstellt einen KI-Assistenten auf Basis Ihrer bestehenden Website-Inhalte. 
+                Standardanfragen werden automatisch beantwortet, konsistent, nachvollziehbar und rund um die Uhr.
+              </p>
+              <p>
+                Der Assistent arbeitet im Hintergrund, reduziert Unterbrechungen im Tagesgeschäft und sorgt dafür, 
+                dass Informationen jederzeit korrekt verfügbar sind.
+              </p>
+            </motion.div>
             
             <motion.div variants={itemVariants} className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <button 
                 onClick={handleGetStarted}
-                className="w-full sm:w-auto px-6 py-3 bg-white text-dark-950 rounded-md font-semibold hover:bg-gray-100 transition-all flex items-center justify-center gap-2"
+                className="w-full sm:w-auto px-8 py-4 bg-white text-dark-950 rounded-md font-bold text-lg hover:bg-gray-100 transition-all flex items-center justify-center gap-2"
               >
                 Jetzt starten
-                <ArrowRight className="h-4 w-4" />
+                <ArrowRight className="h-5 w-5" />
               </button>
-              <a 
-                href="#process"
-                className="w-full sm:w-auto px-6 py-3 border border-white/10 hover:bg-white/5 rounded-md font-medium text-gray-300 transition-all text-center"
+              <button 
+                onClick={() => navigate('/dashboard')}
+                className="w-full sm:w-auto px-8 py-4 glass-button rounded-md font-semibold text-white transition-all flex items-center justify-center gap-2"
               >
-                Funktionsweise
-              </a>
+                Zum Dashboard
+              </button>
             </motion.div>
 
-            <motion.div variants={itemVariants} className="mt-12 flex items-center justify-center gap-6 text-sm text-gray-500">
-              <span className="flex items-center gap-2"><Check className="h-4 w-4 text-gray-600" /> Keine Kreditkarte nötig</span>
-              <span className="flex items-center gap-2"><Check className="h-4 w-4 text-gray-600" /> DSGVO-konform</span>
-              <span className="flex items-center gap-2"><Check className="h-4 w-4 text-gray-600" /> In 5 Min. live</span>
+            <motion.div variants={itemVariants} className="mt-12 flex flex-wrap items-center justify-center gap-8 text-sm text-gray-500 font-medium">
+              <span className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500" /> Keine Kreditkarte nötig</span>
+              <span className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500" /> DSGVO-konform</span>
+              <span className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500" /> In wenigen Minuten einsatzbereit</span>
             </motion.div>
           </motion.div>
         </section>
 
-        {/* Ablauf Sektion (3 Schritte) */}
+        {/* Warum ChatBot Studio */}
+        <section className="px-6 lg:px-8 mb-32 max-w-4xl mx-auto text-center">
+          <h2 className="text-2xl font-bold mb-6 text-white">Warum ChatBot Studio</h2>
+          <div className="text-lg text-gray-400 space-y-6 leading-relaxed">
+            <p>
+              Digitale Erreichbarkeit ist heute eine Erwartung, kein Zusatznutzen mehr. 
+              Gleichzeitig fehlen in vielen Unternehmen Zeit, Personal oder klare Prozesse, 
+              um jede Anfrage manuell zu beantworten.
+            </p>
+            <p className="text-white font-medium">
+              ChatBot Studio schliesst genau diese Lücke.
+            </p>
+            <p>
+              Nicht durch zusätzliche Komplexität, sondern durch eine klare Automatisierung 
+              eines wiederkehrenden Problems.
+            </p>
+          </div>
+        </section>
+
+        {/* Funktionsweise */}
         <section id="process" className="px-6 lg:px-8 mb-32 max-w-7xl mx-auto">
-          <div className="border-t border-white/10 pt-16">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
-              <div className="space-y-4">
-                <div className="text-4xl font-bold text-white/10">01</div>
-                <h3 className="text-lg font-semibold text-white">Quelle definieren</h3>
-                <p className="text-gray-400 leading-relaxed">
-                  Geben Sie Ihre Unternehmens-Website an. Unser System analysiert und indexiert relevante Texte vollautomatisch.
-                </p>
-              </div>
-              <div className="space-y-4">
-                <div className="text-4xl font-bold text-white/10">02</div>
-                <h3 className="text-lg font-semibold text-white">Prüfen & Anpassen</h3>
-                <p className="text-gray-400 leading-relaxed">
-                  Testen Sie die Antworten in der Vorschau. Passen Sie bei Bedarf den Tonfall oder spezifische Anweisungen an.
-                </p>
-              </div>
-              <div className="space-y-4">
-                <div className="text-4xl font-bold text-white/10">03</div>
-                <h3 className="text-lg font-semibold text-white">Integrieren</h3>
-                <p className="text-gray-400 leading-relaxed">
-                  Fügen Sie das generierte JavaScript-Snippet in Ihre Website ein. Der Assistent ist sofort für Ihre Besucher verfügbar.
-                </p>
-              </div>
+          <div className="text-center mb-16">
+            <h2 className="text-3xl font-bold mb-4">Funktionsweise</h2>
+            <p className="text-gray-400">In drei klaren Schritten zum produktiven Einsatz</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
+            <div className="space-y-4">
+              <div className="text-4xl font-bold text-white/10 tracking-tighter italic">01</div>
+              <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                <Link2 className="h-5 w-5 text-indigo-400" /> Quelle definieren
+              </h3>
+              <p className="text-gray-400 leading-relaxed">
+                Sie geben Ihre Unternehmens-Website an. Das System analysiert und indexiert relevante Inhalte automatisch, 
+                darunter Texte, Leistungsbeschreibungen und häufige Fragen. Es werden ausschliesslich Inhalte verwendet, 
+                die öffentlich auf Ihrer Website verfügbar sind.
+              </p>
+            </div>
+            <div className="space-y-4">
+              <div className="text-4xl font-bold text-white/10 tracking-tighter italic">02</div>
+              <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                <Settings className="h-5 w-5 text-indigo-400" /> Prüfen und steuern
+              </h3>
+              <p className="text-gray-400 leading-relaxed">
+                Vor der Veröffentlichung testen Sie die Antworten in einer Vorschau. Sie legen fest, wie der Assistent formuliert, 
+                welche Themen abgedeckt werden und wo bewusst keine Antwort erfolgen soll. So behalten Sie jederzeit die inhaltliche Kontrolle.
+              </p>
+            </div>
+            <div className="space-y-4">
+              <div className="text-4xl font-bold text-white/10 tracking-tighter italic">03</div>
+              <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                <Layout className="h-5 w-5 text-indigo-400" /> Integrieren
+              </h3>
+              <p className="text-gray-400 leading-relaxed">
+                Ein einziges JavaScript-Snippet wird in Ihre Website eingefügt. Der Assistent ist sofort aktiv und steht Ihren 
+                Besucherinnen und Besuchern zur Verfügung. Keine Systemintegration, kein Umbau Ihrer Website, kein laufender Pflegeaufwand.
+              </p>
             </div>
           </div>
         </section>
 
-        {/* Nutzen Sektion */}
+        {/* Wirtschaftlicher Nutzen */}
         <section id="benefits" className="px-6 lg:px-8 mb-32 max-w-7xl mx-auto">
-          <div className="mb-16 max-w-2xl">
+          <div className="mb-16 max-w-3xl">
             <h2 className="text-3xl font-bold mb-4">Wirtschaftlicher Nutzen</h2>
+            <p className="text-xl text-white font-medium mb-4">Automatisierung mit messbarem Effekt</p>
             <p className="text-gray-400">
-              Der Einsatz von KI im Kundenservice ist keine Spielerei, sondern ein Hebel für Effizienz und Kundenzufriedenheit.
+              Der Einsatz von KI im Kundenkontakt ist kein Selbstzweck. 
+              Der Nutzen entsteht dort, wo Zeit gebunden wird, ohne zusätzlichen Wert zu schaffen.
             </p>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {/* Nutzen 1 */}
-            <div className="glass-panel p-8 rounded-xl border border-white/5 bg-white/5">
-              <div className="h-10 w-10 bg-indigo-500/10 rounded-lg flex items-center justify-center mb-6 border border-indigo-500/20">
-                <BarChart3 className="h-5 w-5 text-indigo-400" />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="glass-panel p-8 rounded-2xl">
+              <div className="h-12 w-12 bg-indigo-500/10 rounded-xl flex items-center justify-center mb-6 border border-indigo-500/20">
+                <Users className="h-6 w-6 text-indigo-400" />
               </div>
-              <h3 className="text-lg font-semibold mb-3">Entlastung des Teams</h3>
-              <p className="text-gray-400 text-sm leading-relaxed">
-                Bis zu 80% der Anfragen sind wiederkehrend (Öffnungszeiten, Preise, Status). 
-                Diese werden abgefangen, bevor sie Ihr Personal erreichen.
+              <h3 className="text-xl font-bold mb-4">Entlastung des Teams</h3>
+              <p className="text-gray-400 leading-relaxed">
+                Ein grosser Teil der Anfragen betrifft wiederkehrende Themen wie Öffnungszeiten, Leistungen, Preise oder Abläufe. 
+                Diese Fragen werden automatisiert beantwortet, bevor sie Mitarbeitende erreichen. Das reduziert Unterbrechungen 
+                und schafft Freiraum für wertschöpfende Aufgaben.
               </p>
             </div>
 
-            {/* Nutzen 2 */}
-            <div className="glass-panel p-8 rounded-xl border border-white/5 bg-white/5">
-              <div className="h-10 w-10 bg-green-500/10 rounded-lg flex items-center justify-center mb-6 border border-green-500/20">
-                <Clock className="h-5 w-5 text-green-400" />
+            <div className="glass-panel p-8 rounded-2xl">
+              <div className="h-12 w-12 bg-green-500/10 rounded-xl flex items-center justify-center mb-6 border border-green-500/20">
+                <Clock className="h-6 w-6 text-green-400" />
               </div>
-              <h3 className="text-lg font-semibold mb-3">Verfügbarkeit</h3>
-              <p className="text-gray-400 text-sm leading-relaxed">
-                Kunden erwarten sofortige Antworten, auch am Wochenende. 
-                Sichern Sie Erreichbarkeit, ohne Schichtmodelle einführen zu müssen.
+              <h3 className="text-xl font-bold mb-4">Verfügbarkeit ohne Zusatzkosten</h3>
+              <p className="text-gray-400 leading-relaxed">
+                Kundinnen und Kunden erwarten sofortige Antworten, unabhängig von Bürozeiten. Der Assistent ist jederzeit verfügbar, 
+                ohne Schichtmodelle oder Bereitschaftsdienste.
               </p>
             </div>
 
-            {/* Nutzen 3 */}
-            <div className="glass-panel p-8 rounded-xl border border-white/5 bg-white/5">
-              <div className="h-10 w-10 bg-purple-500/10 rounded-lg flex items-center justify-center mb-6 border border-purple-500/20">
-                <Globe className="h-5 w-5 text-purple-400" />
+            <div className="glass-panel p-8 rounded-2xl">
+              <div className="h-12 w-12 bg-purple-500/10 rounded-xl flex items-center justify-center mb-6 border border-purple-500/20">
+                <BarChart3 className="h-6 w-6 text-purple-400" />
               </div>
-              <h3 className="text-lg font-semibold mb-3">Konsistenz</h3>
-              <p className="text-gray-400 text-sm leading-relaxed">
-                Der Assistent antwortet immer basierend auf den aktuellen Informationen Ihrer Website. 
-                Keine veralteten Aussagen, keine Tagesform.
+              <h3 className="text-xl font-bold mb-4">Konsistente Informationen</h3>
+              <p className="text-gray-400 leading-relaxed">
+                Alle Antworten basieren auf Ihrer Website. Damit ist sichergestellt, dass Aussagen immer aktuell, einheitlich 
+                und nachvollziehbar sind, unabhängig von Tagesform oder Auslastung.
               </p>
             </div>
           </div>
         </section>
 
-        {/* Vertrauen & Reife */}
-        <section id="security" className="px-6 lg:px-8 mb-32 max-w-7xl mx-auto">
-           <div className="glass-panel rounded-xl p-8 md:p-12 border border-white/10 bg-white/5">
-             <div className="max-w-3xl">
-               <h2 className="text-2xl font-bold mb-4">Kontrolle und Sicherheit</h2>
-               <p className="text-gray-400 mb-8 leading-relaxed">
-                 Wir verstehen die Anforderungen an moderne Unternehmenssoftware. 
-                 Das System ist darauf ausgelegt, nur Informationen aus Ihren Quellen zu verwenden. 
-                 Sie behalten die Hoheit über die Antworten.
-               </p>
-               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                 <div className="flex items-center gap-3 text-sm text-gray-300">
-                   <ShieldCheck className="h-5 w-5 text-gray-500" /> 
-                   <span>Hosting in modernen Rechenzentren</span>
-                 </div>
-                 <div className="flex items-center gap-3 text-sm text-gray-300">
-                   <Settings className="h-5 w-5 text-gray-500" /> 
-                   <span>Detaillierte Einsicht in alle Konversationen</span>
-                 </div>
-                 <div className="flex items-center gap-3 text-sm text-gray-300">
-                   <Brain className="h-5 w-5 text-gray-500" /> 
-                   <span>Transparente KI-Kennzeichnung</span>
-                 </div>
-                 <div className="flex items-center gap-3 text-sm text-gray-300">
-                   <Rocket className="h-5 w-5 text-gray-500" /> 
-                   <span>Monatlich kündbar, keine Bindung</span>
-                 </div>
-               </div>
-             </div>
-           </div>
+        {/* Einsatzbereiche */}
+        <section id="use-cases" className="px-6 lg:px-8 mb-32 max-w-7xl mx-auto">
+          <div className="glass-panel rounded-3xl p-8 md:p-12 border border-white/10">
+            <h2 className="text-3xl font-bold mb-8 text-center">Typische Einsatzbereiche</h2>
+            <p className="text-gray-400 text-center mb-12 max-w-2xl mx-auto">
+              ChatBot Studio eignet sich besonders für Unternehmen, die viele ähnliche Anfragen erhalten, zum Beispiel:
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
+              {[
+                "Dienstleistungsunternehmen mit erklärungsbedürftigen Angeboten",
+                "KMU mit begrenzten Support-Ressourcen",
+                "Organisationen mit klar definierten Abläufen und Informationen",
+                "Unternehmen, die Erreichbarkeit verbessern möchten, ohne Personal aufzubauen"
+              ].map((text, i) => (
+                <div key={i} className="flex items-start gap-4">
+                  <div className="mt-1 h-5 w-5 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0">
+                    <Check className="h-3 w-3 text-indigo-400" />
+                  </div>
+                  <span className="text-gray-300 font-medium">{text}</span>
+                </div>
+              ))}
+            </div>
+            <p className="text-center mt-12 text-sm text-gray-500 italic">
+              Der Assistent ersetzt keine Mitarbeitenden, sondern übernimmt Vorarbeit und Standardfälle.
+            </p>
+          </div>
         </section>
 
-        {/* Footer */}
-        <footer className="border-t border-white/5 bg-dark-950 pt-16 pb-8 px-6 lg:px-8">
-          <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
-            <div className="flex items-center gap-2">
-              <Bot className="h-5 w-5 text-gray-500" />
-              <span className="text-sm font-semibold text-gray-400">ChatBot Studio</span>
+        {/* Sicherheit & Kontrolle */}
+        <section id="security" className="px-6 lg:px-8 mb-32 max-w-7xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+            <div>
+              <h2 className="text-3xl font-bold mb-6">Kontrolle und Sicherheit</h2>
+              <h3 className="text-xl font-semibold mb-4 text-white">Kontrolle statt Blackbox</h3>
+              <p className="text-gray-400 mb-6 leading-relaxed">
+                ChatBot Studio ist so konzipiert, dass Unternehmen jederzeit die Hoheit über Inhalte und Aussagen behalten. 
+                Der Assistent nutzt ausschliesslich definierte Quellen, beantwortet keine Fragen ausserhalb dieser Inhalte 
+                und gibt bei Unsicherheit keine Vermutungen aus.
+              </p>
+              <div className="space-y-4">
+                <div className="flex items-center gap-3 text-sm text-gray-300">
+                  <ShieldCheck className="h-5 w-5 text-indigo-400" /> Transparenz im Betrieb: vollständige Einsicht in alle Konversationen
+                </div>
+                <div className="flex items-center gap-3 text-sm text-gray-300">
+                  <ShieldCheck className="h-5 w-5 text-indigo-400" /> Überblick über häufige Fragen
+                </div>
+                <div className="flex items-center gap-3 text-sm text-gray-300">
+                  <ShieldCheck className="h-5 w-5 text-indigo-400" /> Kontrolle darüber, welche Inhalte genutzt werden
+                </div>
+              </div>
             </div>
-            
-            <div className="flex gap-8 text-sm text-gray-500">
+            <div className="glass-panel p-8 rounded-2xl border border-white/5 bg-white/5 space-y-6">
+              <h3 className="text-xl font-bold flex items-center gap-2"><ShieldCheck className="h-6 w-6 text-green-400" /> Datenschutz und KI-Transparenz</h3>
+              <p className="text-sm text-gray-400 leading-relaxed">Datenschutz ist integraler Bestandteil des Systems.</p>
+              <ul className="space-y-3">
+                <li className="flex gap-3 text-sm text-gray-300"><Check className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" /> Verarbeitung gemäss DSGVO</li>
+                <li className="flex gap-3 text-sm text-gray-300"><Check className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" /> Keine Nutzung von Kundendaten zum Training fremder Modelle</li>
+                <li className="flex gap-3 text-sm text-gray-300"><Check className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" /> Klare Zweckbindung der Daten</li>
+                <li className="flex gap-3 text-sm text-gray-300"><Check className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" /> Transparente Kennzeichnung als KI-System</li>
+              </ul>
+              <p className="text-xs text-gray-500 italic">Besucherinnen und Besucher wissen jederzeit, dass sie mit einem automatisierten System kommunizieren.</p>
+            </div>
+          </div>
+        </section>
+
+        {/* Preisgestaltung */}
+        <section id="pricing" className="px-6 lg:px-8 mb-32 max-w-7xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl font-bold mb-4">Preisgestaltung</h2>
+            <p className="text-gray-400">Klar strukturiert. Ohne versteckte Kosten.</p>
+          </div>
+          <div className="max-w-md mx-auto glass-panel rounded-2xl p-10 border-indigo-500/30 relative">
+            <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-indigo-600 text-white px-4 py-1 rounded-full text-xs font-bold uppercase tracking-widest">Empfehlung</div>
+            <div className="text-center mb-8">
+              <p className="text-gray-400 mb-2 font-medium">Software as a Service</p>
+              <div className="text-5xl font-bold mb-2">Preiswert</div>
+              <p className="text-sm text-gray-500 italic">monatlich kündbar</p>
+            </div>
+            <ul className="space-y-4 mb-10">
+              <li className="flex items-center gap-3 text-sm text-gray-300 font-medium"><Check className="h-4 w-4 text-indigo-400" /> Keine Einrichtungsgebühren</li>
+              <li className="flex items-center gap-3 text-sm text-gray-300 font-medium"><Check className="h-4 w-4 text-indigo-400" /> Keine Mindestlaufzeit</li>
+              <li className="flex items-center gap-3 text-sm text-gray-300 font-medium"><Check className="h-4 w-4 text-indigo-400" /> Klare Leistungsabgrenzung</li>
+            </ul>
+            <button onClick={handleGetStarted} className="w-full py-4 bg-white text-dark-950 rounded-lg font-bold hover:bg-gray-100 transition-all">
+              Kostenlos registrieren
+            </button>
+            <p className="text-center mt-4 text-xs text-gray-500">So bleibt der Einsatz planbar und risikoarm.</p>
+          </div>
+        </section>
+
+        {/* Einstieg */}
+        <section className="px-6 lg:px-8 mb-16">
+          <div className="max-w-5xl mx-auto text-center p-12 md:p-24 glass-panel rounded-3xl border-white/10 overflow-hidden relative">
+            <div className="absolute inset-0 bg-gradient-to-r from-indigo-600/20 to-purple-600/20 pointer-events-none" />
+            <h2 className="text-4xl font-bold mb-6 relative z-10">In wenigen Minuten startklar</h2>
+            <p className="text-gray-400 text-lg mb-10 max-w-2xl mx-auto relative z-10">
+              Nach der Registrierung führen wir Sie Schritt für Schritt durch den Aufbau Ihres Assistenten. 
+              Der erste produktive Einsatz ist in der Regel innerhalb weniger Minuten möglich.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center relative z-10">
+              <button 
+                onClick={handleGetStarted}
+                className="px-8 py-4 bg-white text-dark-950 rounded-md font-bold text-lg hover:bg-gray-100 transition-all"
+              >
+                Jetzt starten
+              </button>
+              <button 
+                onClick={() => navigate('/dashboard')}
+                className="px-8 py-4 glass-button rounded-md font-semibold text-white transition-all"
+              >
+                Zum Dashboard
+              </button>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      {/* Footer */}
+      <footer className="border-t border-white/5 bg-dark-950 py-16 px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
+          <div className="col-span-1 md:col-span-2">
+            <div className="flex items-center gap-2 mb-4">
+              <Bot className="h-6 w-6 text-gray-400" />
+              <span className="font-bold text-lg text-white tracking-tight">ChatBot Studio</span>
+            </div>
+            <p className="text-gray-500 text-sm font-medium mb-6">
+              Software für den Mittelstand
+            </p>
+          </div>
+          
+          <div className="space-y-4">
+            <h4 className="font-bold text-white text-sm">Rechtliches</h4>
+            <div className="flex flex-col gap-3 text-sm text-gray-500 font-medium">
               <a href="#" className="hover:text-white transition-colors">Datenschutz</a>
               <a href="#" className="hover:text-white transition-colors">Impressum</a>
-              <a href="#" className="hover:text-white transition-colors">Kontakt</a>
-            </div>
-            
-            <div className="text-xs text-gray-600">
-              © 2025 ChatBot Studio. Software für den Mittelstand.
+              <a href="#" className="hover:text-white transition-colors">AGB</a>
             </div>
           </div>
-        </footer>
-      </main>
+          
+          <div className="space-y-4">
+            <h4 className="font-bold text-white text-sm">Kontakt</h4>
+            <div className="flex flex-col gap-3 text-sm text-gray-500 font-medium">
+              <a href="#" className="hover:text-white transition-colors">Kontakt aufnehmen</a>
+              <span className="text-xs text-gray-600">© 2025 ChatBot Studio</span>
+            </div>
+          </div>
+        </div>
+      </footer>
     </div>
-  )
-}
-
-function Clock(props: any) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <circle cx="12" cy="12" r="10" />
-      <polyline points="12 6 12 12 16 14" />
-    </svg>
   )
 }
