@@ -19,6 +19,7 @@
     "appwrite": "^21.4.0",
     "clsx": "^2.1.1",
     "express": "^5.1.0",
+    "framer-motion": "^12.23.26",
     "lucide-react": "^0.543.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",

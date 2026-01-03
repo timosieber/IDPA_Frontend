@@ -1,4 +1,4 @@
-import { Bot, LogOut, Plus, MessageSquare, BarChart, GraduationCap, Copy, Trash2, Globe, CheckCircle, Clock, XCircle, Settings, Palette } from 'lucide-react'
+import { Bot, LogOut, Plus, MessageSquare, GraduationCap, Copy, Trash2, Globe, CheckCircle, Clock, XCircle, Zap, ArrowRight } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -28,27 +28,25 @@ export default function Dashboard() {
   }
 
   const [chatbots, setChatbots] = useState<Chatbot[]>([])
-  const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
 
-  // Create Chatbot Flow
+  // Erstellungs-Workflow
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [step, setStep] = useState<'details' | 'scraping' | 'done'>('details')
   const [name, setName] = useState('')
   const [websiteUrl, setWebsiteUrl] = useState('')
   const [creating, setCreating] = useState(false)
   const [newChatbot, setNewChatbot] = useState<Chatbot | null>(null)
-  const [scrapeResult, setScrapeResult] = useState<{ sources: number; pages: number } | null>(null)
 
-  // Selected Chatbot Details
+  // Bot Details
   const [selectedBot, setSelectedBot] = useState<Chatbot | null>(null)
   const [botSources, setBotSources] = useState<KnowledgeSource[]>([])
   const [loadingSources, setLoadingSources] = useState(false)
   const [activeTab, setActiveTab] = useState<'details' | 'settings' | 'preview'>('details')
   const [drawerOpen, setDrawerOpen] = useState(false)
 
-  // Settings Form State
+  // Formular-State
   const [editName, setEditName] = useState('')
   const [editDescription, setEditDescription] = useState('')
   const [editSystemPrompt, setEditSystemPrompt] = useState('')
@@ -57,15 +55,14 @@ export default function Dashboard() {
   const [editAvatarType, setEditAvatarType] = useState<'robot' | 'human' | 'pencil'>('robot')
   const [saving, setSaving] = useState(false)
 
-  // Background Scraping State
+  // Hintergrund-Scraping
   const [scrapingBots, setScrapingBots] = useState<Set<string>>(() => loadScrapingBotsFromStorage())
   const provisioningAbortControllersRef = useRef<Map<string, AbortController>>(new Map())
 
-  // Widget preview state (local-only)
+  // Widget Vorschau
   const [widgetGreeting, setWidgetGreeting] = useState('Hallo! Wie können wir dir helfen?')
   const [widgetPreviewNonce, setWidgetPreviewNonce] = useState(0)
 
-  // Helper to show prep state while Scraper/Sources noch arbeiten
   const isBotPreparing = (bot: Chatbot) => {
     const hasPendingSources = selectedBot?.id === bot.id && botSources.some((s) => s.status === 'PENDING')
     return scrapingBots.has(bot.id) || hasPendingSources
@@ -94,7 +91,6 @@ export default function Dashboard() {
   }, [editAvatarType, editName, editPrimaryColor, selectedBot, widgetGreeting, widgetPreviewNonce])
 
   const load = async ({ silent }: { silent?: boolean } = {}) => {
-    if (!silent) setLoading(true)
     if (!silent) setError(null)
     try {
       const data = await listChatbots()
@@ -121,8 +117,6 @@ export default function Dashboard() {
       } else {
         console.error('Fehler beim Hintergrund-Refresh:', e)
       }
-    } finally {
-      if (!silent) setLoading(false)
     }
   }
 
@@ -130,7 +124,6 @@ export default function Dashboard() {
     load()
   }, [])
 
-  // Persist background scraping state across reloads
   useEffect(() => {
     localStorage.setItem(SCRAPING_BOTS_STORAGE_KEY, JSON.stringify(Array.from(scrapingBots)))
   }, [scrapingBots])
@@ -178,8 +171,29 @@ export default function Dashboard() {
       const avatar = theme?.avatarType
       setEditAvatarType(avatar === 'human' ? 'human' : avatar === 'pencil' ? 'pencil' : 'robot')
       setWidgetPreviewNonce((n) => n + 1)
-      const interval = setInterval(() => loadBotSources(selectedBot.id), 3000)
-      return () => clearInterval(interval)
+
+      // Use SSE instead of polling for real-time updates
+      const controller = new AbortController()
+      void streamProvisioningEvents({
+        chatbotId: selectedBot.id,
+        signal: controller.signal,
+        onEvent: (evt) => {
+          if (evt.chatbotId !== selectedBot.id) return
+          // Reload sources when status changes
+          if (evt.type === 'completed' || evt.type === 'failed' || evt.type === 'snapshot') {
+            loadBotSources(selectedBot.id)
+            // Also reload the chatbot list to update status
+            void load({ silent: true })
+          }
+        },
+      }).catch((err) => {
+        // Ignore abort errors (expected when component unmounts)
+        if (err?.name !== 'AbortError') {
+          console.error('SSE stream error:', err)
+        }
+      })
+
+      return () => controller.abort()
     }
   }, [selectedBot])
 
@@ -194,7 +208,6 @@ export default function Dashboard() {
     setName('')
     setWebsiteUrl('')
     setNewChatbot(null)
-    setScrapeResult(null)
     setError(null)
     setSuccess(null)
   }
@@ -206,7 +219,7 @@ export default function Dashboard() {
     try {
       const bot = await createChatbot({
         name,
-        allowedDomains: [], // Keine Einschränkung, alle Domains erlaubt
+        allowedDomains: [],
         status: 'DRAFT',
       })
       setChatbots((prev) => [bot, ...prev.filter((b) => b.id !== bot.id)])
@@ -224,14 +237,12 @@ export default function Dashboard() {
     e.preventDefault()
     if (!newChatbot) return
 
-    // Modal sofort schließen und Bot zur Scraping-Liste hinzufügen
     setShowCreateModal(false)
     setScrapingBots((prev) => new Set(prev).add(newChatbot.id))
     setSelectedBot(newChatbot)
     setDrawerOpen(true)
     setSuccess(`Chatbot "${newChatbot.name}" wird erstellt - Scraping läuft im Hintergrund...`)
 
-    // Subscribe to backend provisioning events (push, no polling)
     const controller = new AbortController()
     provisioningAbortControllersRef.current.get(newChatbot.id)?.abort()
     provisioningAbortControllersRef.current.set(newChatbot.id, controller)
@@ -262,12 +273,10 @@ export default function Dashboard() {
         }
       },
     }).catch((err) => {
-      // Ignore AbortError - these are expected when stream is cancelled intentionally
       if (err instanceof Error && err.name === 'AbortError') return
       console.error('Provisioning-Stream Fehler:', err)
     })
 
-    // Scraping im Hintergrund durchführen
     scrapeWebsite({
       chatbotId: newChatbot.id,
       startUrls: [websiteUrl],
@@ -334,917 +343,529 @@ export default function Dashboard() {
   }
 
   const activeBots = chatbots.filter(b => b.status === 'ACTIVE').length
-  const totalSources = 0 // TODO: real count
+  const totalSources = 0
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-dark-950 text-white font-sans selection:bg-indigo-500/30">
       {/* Header */}
-      <header className="bg-white shadow-sm">
+      <header className="border-b border-white/5 bg-dark-950/80 backdrop-blur-xl sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <Bot className="h-8 w-8 text-indigo-600" />
-              <span className="ml-2 text-xl font-bold text-gray-900">ChatBot Studio</span>
+            <div className="flex items-center gap-3">
+              <div className="p-1.5 bg-gradient-to-br from-indigo-500 to-cyan-500 rounded-lg shadow-lg shadow-indigo-500/20">
+                <Bot className="h-5 w-5 text-white" />
+              </div>
+              <span className="text-lg font-bold tracking-tight text-white">ChatBot Studio</span>
             </div>
-            <div className="flex items-center gap-4">
-              <span className="text-sm text-gray-700">{user?.name || user?.email || 'User'}</span>
+            <div className="flex items-center gap-6">
+              <span className="text-sm text-gray-400 font-medium">{user?.name || user?.email || 'Benutzer'}</span>
               <button
                 onClick={handleSignOut}
-                className="flex items-center gap-2 text-gray-700 hover:text-indigo-600 transition-colors"
+                className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors text-sm"
               >
-                <LogOut className="h-5 w-5" />
-                <span className="text-sm font-medium">Abmelden</span>
+                <LogOut className="h-4 w-4" />
+                <span>Abmelden</span>
               </button>
             </div>
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Welcome Section */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Willkommen zurück, {user?.name || 'Creator'}!</h1>
-          <p className="mt-2 text-gray-600">
-            Verwalten Sie Ihre Chatbots und überwachen Sie deren Performance
-          </p>
+      {/* Hauptinhalt */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        <div className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-white tracking-tight">Willkommen zurück, {user?.name || 'Creator'}</h1>
+            <p className="mt-2 text-gray-400">
+              Verwalten Sie Ihre KI-Agenten und überwachen Sie deren Performance.
+            </p>
+          </div>
+          <button
+            onClick={handleCreateClick}
+            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2.5 rounded-lg font-medium transition-all shadow-lg shadow-indigo-500/20"
+          >
+            <Plus className="h-5 w-5" />
+            Neuen Bot erstellen
+          </button>
         </div>
 
         {/* Alerts */}
         {error && (
-          <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
-            <XCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+          <div className="mb-6 bg-red-500/10 border border-red-500/20 rounded-lg p-4 flex items-start gap-3">
+            <XCircle className="h-5 w-5 text-red-400 flex-shrink-0 mt-0.5" />
             <div className="flex-1">
-              <p className="text-sm text-red-800">{error}</p>
+              <p className="text-sm text-red-200">{error}</p>
             </div>
-            <button onClick={() => setError(null)} className="text-red-600 hover:text-red-800">×</button>
+            <button onClick={() => setError(null)} className="text-red-400 hover:text-red-200">×</button>
           </div>
         )}
         {success && (
-          <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4 flex items-start gap-3">
-            <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+          <div className="mb-6 bg-green-500/10 border border-green-500/20 rounded-lg p-4 flex items-start gap-3">
+            <CheckCircle className="h-5 w-5 text-green-400 flex-shrink-0 mt-0.5" />
             <div className="flex-1">
-              <p className="text-sm text-green-800">{success}</p>
+              <p className="text-sm text-green-200">{success}</p>
             </div>
-            <button onClick={() => setSuccess(null)} className="text-green-600 hover:text-green-800">×</button>
+            <button onClick={() => setSuccess(null)} className="text-green-400 hover:text-green-200">×</button>
           </div>
         )}
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Aktive Chatbots</p>
-                <p className="text-3xl font-bold text-gray-900">{activeBots}</p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+          <div className="glass-panel p-6 rounded-xl relative overflow-hidden group">
+            <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+              <MessageSquare className="h-24 w-24 text-white" />
+            </div>
+            <div className="relative z-10">
+              <p className="text-sm font-medium text-gray-400 mb-1">Aktive Agenten</p>
+              <div className="flex items-end gap-2">
+                <p className="text-3xl font-bold text-white">{activeBots}</p>
+                <div className="h-2 w-2 rounded-full bg-green-500 mb-2 animate-pulse" />
               </div>
-              <MessageSquare className="h-12 w-12 text-indigo-600 opacity-20" />
             </div>
           </div>
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Gesamt Chatbots</p>
-                <p className="text-3xl font-bold text-gray-900">{chatbots.length}</p>
-              </div>
-              <Bot className="h-12 w-12 text-green-600 opacity-20" />
+          
+          <div className="glass-panel p-6 rounded-xl relative overflow-hidden">
+             <div className="absolute top-0 right-0 p-4 opacity-5">
+              <Bot className="h-24 w-24 text-white" />
             </div>
+            <p className="text-sm font-medium text-gray-400 mb-1">Bots Gesamt</p>
+            <p className="text-3xl font-bold text-white">{chatbots.length}</p>
           </div>
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between">
+
+          <div className="glass-panel p-6 rounded-xl relative overflow-hidden cursor-pointer hover:border-indigo-500/30 transition-colors" onClick={() => navigate('/training')}>
+            <div className="absolute top-0 right-0 p-4 opacity-5">
+              <GraduationCap className="h-24 w-24 text-white" />
+            </div>
+            <div className="flex justify-between items-start">
               <div>
-                <p className="text-sm text-gray-600">Wissensquellen</p>
-                <p className="text-3xl font-bold text-gray-900">{totalSources}</p>
+                <p className="text-sm font-medium text-gray-400 mb-1">Wissensquellen</p>
+                <p className="text-3xl font-bold text-white">{totalSources}</p>
               </div>
-              <GraduationCap className="h-12 w-12 text-purple-600 opacity-20" />
+              <div className="bg-white/5 p-2 rounded-lg">
+                <ArrowRight className="h-4 w-4 text-gray-400" />
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <button
-            onClick={handleCreateClick}
-            className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white p-6 rounded-lg hover:shadow-lg transition-all transform hover:-translate-y-1"
-          >
-            <Plus className="h-10 w-10 mb-3" />
-            <h3 className="font-semibold text-lg mb-2">Neuer Chatbot</h3>
-            <p className="text-indigo-100 text-sm">Chatbot erstellen & Website scrapen</p>
-          </button>
-          <button
-            onClick={() => navigate('/training')}
-            className="bg-white border-2 border-gray-200 p-6 rounded-lg hover:border-indigo-500 hover:shadow-md transition-all"
-          >
-            <GraduationCap className="h-10 w-10 text-indigo-600 mb-3" />
-            <h3 className="font-semibold text-lg mb-2 text-gray-900">Training</h3>
-            <p className="text-gray-600 text-sm">Wissen hinzufügen & verwalten</p>
-          </button>
-          <button className="bg-white border-2 border-gray-200 p-6 rounded-lg hover:border-indigo-500 hover:shadow-md transition-all">
-            <BarChart className="h-10 w-10 text-green-600 mb-3" />
-            <h3 className="font-semibold text-lg mb-2 text-gray-900">Analytics</h3>
-            <p className="text-gray-600 text-sm">Performance & Statistiken</p>
-          </button>
-        </div>
+        {/* Chatbots Liste */}
+        <h2 className="text-xl font-bold text-white mb-6">Ihre Agenten</h2>
+        
+        {chatbots.length === 0 ? (
+          <div className="glass-panel rounded-xl p-16 text-center border-dashed border-2 border-white/10">
+            <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-6">
+              <Bot className="h-8 w-8 text-gray-400" />
+            </div>
+            <h3 className="text-lg font-semibold text-white mb-2">Noch keine Agenten</h3>
+            <p className="text-gray-400 mb-6 max-w-sm mx-auto">Erstellen Sie Ihren ersten KI-Agenten, um Ihren Support zu automatisieren.</p>
+            <button
+              onClick={handleCreateClick}
+              className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+            >
+              <Plus className="h-4 w-4" />
+              Agent erstellen
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {chatbots.map((bot) => (
+              <div
+                key={bot.id}
+                onClick={() => handleSelectBot(bot)}
+                className={`glass-panel rounded-xl p-6 cursor-pointer group hover:border-indigo-500/50 transition-all duration-300 relative overflow-hidden ${
+                  selectedBot?.id === bot.id ? 'ring-2 ring-indigo-500 border-transparent' : ''
+                }`}
+              >
+                <div className="absolute top-4 right-4">
+                  <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${
+                     isBotPreparing(bot)
+                      ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-400'
+                      : bot.status === 'ACTIVE'
+                        ? 'bg-green-500/10 border-green-500/20 text-green-400'
+                        : 'bg-yellow-500/10 border-yellow-500/20 text-yellow-400'
+                  }`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${
+                      isBotPreparing(bot) ? 'bg-indigo-400 animate-pulse' : 
+                      bot.status === 'ACTIVE' ? 'bg-green-400' : 'bg-yellow-400'
+                    }`} />
+                    {isBotPreparing(bot) ? 'Wird vorbereitet' : bot.status}
+                  </span>
+                </div>
 
-        {/* Chatbots Section */}
-        <div className="grid grid-cols-1 gap-6">
-          {/* Chatbot List */}
-          <div className="bg-white rounded-lg shadow">
-            <div className="p-6 border-b border-gray-200">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-gray-900">Ihre Chatbots</h2>
-                <div className="text-sm text-gray-500">{loading ? 'Lade…' : `${chatbots.length} Bots`}</div>
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-gray-800 to-gray-900 border border-white/10 flex items-center justify-center group-hover:scale-105 transition-transform">
+                     {bot.logoUrl ? (
+                       <img src={bot.logoUrl} alt="" className="w-8 h-8 object-contain" />
+                     ) : (
+                       <Bot className="h-6 w-6 text-gray-400" />
+                     )}
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-white group-hover:text-indigo-400 transition-colors">{bot.name}</h3>
+                    <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
+                      <Globe className="h-3 w-3" />
+                      <span className="truncate max-w-[140px]">{bot.allowedDomains.length > 0 ? bot.allowedDomains[0] : 'Keine Domains'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {isBotPreparing(bot) && (
+                  <div className="mb-4">
+                     <div className="flex justify-between text-xs text-indigo-300 mb-1">
+                       <span>Scraping & Training...</span>
+                       <Zap className="h-3 w-3 animate-pulse" />
+                     </div>
+                     <div className="h-1 w-full bg-gray-800 rounded-full overflow-hidden">
+                       <div className="h-full bg-indigo-500 animate-progress w-2/3" />
+                     </div>
+                  </div>
+                )}
+                
+                <div className="flex items-center justify-between mt-4 pt-4 border-t border-white/5">
+                  <div className="text-xs text-gray-500">
+                    Erstellt {new Date(bot.createdAt).toLocaleDateString()}
+                  </div>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onDelete(bot.id) }}
+                    className="p-2 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
-            </div>
-            <div className="p-6">
-              {chatbots.length === 0 ? (
-                <div className="text-center py-12">
-                  <Bot className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-600 mb-4">Noch keine Chatbots vorhanden</p>
-                  <button
-                    onClick={handleCreateClick}
-                    className="inline-flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700"
-                  >
-                    <Plus className="h-4 w-4" />
-                    Ersten Chatbot erstellen
-                  </button>
-                </div>
-              ) : (
-                <ul className="divide-y divide-gray-200">
-                  {chatbots.map((bot) => (
-                    <li
-                      key={bot.id}
-                      className={`py-4 px-4 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors ${
-                        selectedBot?.id === bot.id ? 'bg-indigo-50 border-2 border-indigo-200' : ''
-                      }`}
-                      onClick={() => handleSelectBot(bot)}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3">
-                            <div className="font-medium text-gray-900">{bot.name}</div>
-                            <span className={`px-3 py-1 text-xs font-semibold rounded-full flex items-center gap-1.5 shadow ${
-                              isBotPreparing(bot)
-                                ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white animate-pulse'
-                                : bot.status === 'ACTIVE'
-                                  ? 'bg-green-100 text-green-800'
-                                  : bot.status === 'DRAFT'
-                                    ? 'bg-gray-100 text-gray-800'
-                                    : 'bg-yellow-100 text-yellow-800'
-                            }`}>
-                              {isBotPreparing(bot) && (
-                                <svg className="h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                </svg>
-                              )}
-                              {isBotPreparing(bot) ? 'Wird vorbereitet' : bot.status}
-                            </span>
-                          </div>
-                          <div className="text-sm text-gray-500 mt-1">
-                            <Globe className="inline h-3 w-3 mr-1" />
-                            {bot.allowedDomains.length > 0 ? bot.allowedDomains.join(', ') : 'Keine Domains'}
-                          </div>
-                          {isBotPreparing(bot) && (
-                            <div className="mt-2">
-                              <div className="w-full bg-gray-200 rounded-full h-1.5">
-                                <div className="bg-gradient-to-r from-blue-500 to-indigo-600 h-1.5 rounded-full animate-pulse" style={{ width: '100%' }}></div>
-                              </div>
-                              <p className="text-xs text-blue-600 mt-1 font-medium">Scraper läuft – wir bereiten deinen Chatbot für neue Antworten vor.</p>
-                            </div>
-                          )}
-                        </div>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); onDelete(bot.id) }}
-                          className="text-red-600 hover:text-red-700 p-2"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
+            ))}
           </div>
-
-          {/* Details Panel */}
-          <div className="hidden">
-            <div className="p-6 border-b border-gray-200">
-              {selectedBot ? (
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setActiveTab('details')}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-                      activeTab === 'details'
-                        ? 'bg-indigo-100 text-indigo-700'
-                        : 'text-gray-600 hover:bg-gray-100'
-                    }`}
-                  >
-                    <MessageSquare className="h-4 w-4" />
-                    Details
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('settings')}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-                      activeTab === 'settings'
-                        ? 'bg-indigo-100 text-indigo-700'
-                        : 'text-gray-600 hover:bg-gray-100'
-                    }`}
-                  >
-                    <Settings className="h-4 w-4" />
-                    Einstellungen
-                  </button>
-                </div>
-              ) : (
-                <h2 className="text-xl font-semibold text-gray-900">Details</h2>
-              )}
-            </div>
-            <div className="p-6">
-              {!selectedBot ? (
-                <div className="text-center py-12 text-gray-500">
-                  <MessageSquare className="h-12 w-12 mx-auto mb-3 text-gray-400" />
-                  <p>Wählen Sie einen Chatbot aus</p>
-                </div>
-              ) : activeTab === 'details' ? (
-                <div className="space-y-6">
-                  {isBotPreparing(selectedBot) && (
-                    <div className="rounded-xl bg-gradient-to-r from-indigo-500 via-blue-500 to-purple-500 text-white p-4 flex items-start gap-3 shadow-lg">
-                      <div className="h-10 w-10 rounded-full border-2 border-white/60 flex items-center justify-center">
-                        <svg className="h-5 w-5 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                      </div>
-                      <div>
-                        <p className="font-semibold">Chatbot wird vorbereitet</p>
-                        <p className="text-sm text-indigo-50">Der Scraper verarbeitet gerade deine Website. Das Chatten ist in Kürze möglich.</p>
-                      </div>
-                    </div>
-                  )}
-                  {/* Info */}
-                  <div>
-                    <h3 className="font-semibold text-gray-900 mb-2">{selectedBot.name}</h3>
-                    <p className="text-sm text-gray-600">ID: {selectedBot.id}</p>
-                    <p className="text-sm text-gray-600 mt-1">Erstellt: {new Date(selectedBot.createdAt).toLocaleDateString('de-DE')}</p>
-                    <p className="text-sm mt-1">
-                      Status:{' '}
-                      <span
-                        className={
-                          selectedBot.status === 'ACTIVE'
-                            ? 'text-green-600 font-semibold'
-                            : selectedBot.status === 'DRAFT'
-                            ? 'text-yellow-600 font-semibold'
-                            : 'text-gray-600'
-                        }
-                      >
-                        {selectedBot.status}
-                      </span>
-                    </p>
-                  </div>
-
-                  {/* Knowledge Sources */}
-                  <div>
-                    <h4 className="font-semibold text-gray-900 mb-2">Wissensquellen</h4>
-                    {loadingSources ? (
-                      <p className="text-sm text-gray-500">Lade...</p>
-                    ) : botSources.length === 0 ? (
-                      <p className="text-sm text-gray-500">Keine Quellen vorhanden</p>
-                    ) : (
-                      <ul className="space-y-2">
-                        {botSources.map((source) => (
-                          <li key={source.id} className="text-sm flex items-center gap-2">
-                            {source.status === 'READY' && <CheckCircle className="h-4 w-4 text-green-600" />}
-                            {source.status === 'PENDING' && <Clock className="h-4 w-4 text-yellow-600" />}
-                            {source.status === 'FAILED' && <XCircle className="h-4 w-4 text-red-600" />}
-                            <span className="truncate">{source.label}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-
-                  {/* Embed Snippet */}
-                  {selectedBot.status === 'ACTIVE' ? (
-                    <div>
-                      <h4 className="font-semibold text-gray-900 mb-2">Embed-Code</h4>
-                      <div className="relative">
-                        <pre className="text-xs bg-gray-900 text-gray-100 rounded-lg p-3 overflow-auto max-h-48">
-                          <code>{snippet}</code>
-                        </pre>
-                        <button
-                          onClick={() => {
-                            navigator.clipboard.writeText(snippet)
-                            setSuccess('Code kopiert!')
-                          }}
-                          className="absolute top-2 right-2 inline-flex items-center gap-1 text-xs bg-indigo-600 text-white px-2 py-1 rounded hover:bg-indigo-700"
-                        >
-                          <Copy className="h-3 w-3" /> Kopieren
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800">
-                      Der Bot wird noch vorbereitet. Der Embed-Code steht zur Verfügung, sobald der Status <strong>ACTIVE</strong> erreicht ist.
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <form onSubmit={handleSaveSettings} className="space-y-4">
-                  {/* Bot Name */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Bot Name</label>
-                    <input
-                      type="text"
-                      value={editName}
-                      onChange={(e) => setEditName(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                      required
-                    />
-                  </div>
-
-                  {/* Description */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Beschreibung</label>
-                    <textarea
-                      value={editDescription}
-                      onChange={(e) => setEditDescription(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                      rows={2}
-                      placeholder="Optionale Beschreibung..."
-                    />
-                  </div>
-
-                  {/* Logo URL */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Logo URL</label>
-                    <input
-                      type="url"
-                      value={editLogoUrl}
-                      onChange={(e) => setEditLogoUrl(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                      placeholder="https://example.com/logo.png"
-                    />
-                  </div>
-
-                  {/* Primary Color */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      <Palette className="inline h-4 w-4 mr-1" />
-                      Primärfarbe
-                    </label>
-                    <div className="flex gap-2 items-center">
-                      <input
-                        type="color"
-                        value={editPrimaryColor}
-                        onChange={(e) => setEditPrimaryColor(e.target.value)}
-                        className="h-10 w-20 border border-gray-300 rounded cursor-pointer"
-                      />
-                      <input
-                        type="text"
-                        value={editPrimaryColor}
-                        onChange={(e) => setEditPrimaryColor(e.target.value)}
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                        placeholder="#4F46E5"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Avatar */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Icon im Chat-Widget</label>
-                    <div className="grid grid-cols-3 gap-2">
-                      {(['robot', 'human', 'pencil'] as const).map((t) => (
-                        <button
-                          key={t}
-                          type="button"
-                          onClick={() => setEditAvatarType(t)}
-                          className={`px-3 py-2 rounded-lg border text-sm font-medium ${
-                            editAvatarType === t
-                              ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
-                              : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
-                          }`}
-                        >
-                          {t === 'robot' ? 'Roboter' : t === 'human' ? 'Mensch' : 'Zeichner'}
-                        </button>
-                      ))}
-                    </div>
-                    <p className="text-xs text-gray-500 mt-1">Wird im Widget-Header und bei Bot-Nachrichten angezeigt.</p>
-                  </div>
-
-                  {/* System Prompt */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Custom System Prompt (Optional)
-                    </label>
-                    <textarea
-                      value={editSystemPrompt}
-                      onChange={(e) => setEditSystemPrompt(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent font-mono text-sm"
-                      rows={6}
-                      placeholder="Leer lassen für Standard-Prompt. Beispiel:&#10;Du bist ein Support-Bot für TrendingMedia.&#10;- Sprich aus Unternehmensperspektive (wir, uns)&#10;- Halte Antworten kurz und präzise&#10;- Antworte nur basierend auf den bereitgestellten Infos"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Falls leer, wird der Standard-Prompt verwendet (Unternehmensperspektive, kurze Antworten)
-                    </p>
-                  </div>
-
-                  {/* Widget Preview */}
-                  <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <div className="text-sm font-semibold text-gray-900">Widget-Vorschau</div>
-                        <div className="text-xs text-gray-600">Live testen & optisch anpassen (nur Vorschau).</div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setWidgetPreviewNonce((n) => n + 1)}
-                        className="text-xs bg-white border border-gray-300 px-3 py-1.5 rounded-lg hover:bg-gray-100"
-                      >
-                        Vorschau neu starten
-                      </button>
-                    </div>
-
-                    <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-3">
-                        <div>
-                          <label className="block text-xs font-medium text-gray-700 mb-1">Begrüßungstext</label>
-                          <textarea
-                            value={widgetGreeting}
-                            onChange={(e) => setWidgetGreeting(e.target.value)}
-                            rows={3}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
-                            placeholder="z.B. Hallo! Wie können wir dir helfen?"
-                          />
-                          <div className="text-[11px] text-gray-500 mt-1">
-                            Titel, Primärfarbe und Icon kommen aus den Einstellungen oben.
-                          </div>
-                        </div>
-
-                        <div className="text-xs text-gray-600">
-                          Tipp: Schreibe im Widget eine Nachricht, um Antworten + Quellen zu testen.
-                        </div>
-                      </div>
-
-                      <div className="rounded-xl border border-gray-200 bg-white overflow-hidden shadow-sm">
-                        {selectedBot ? (
-                          <iframe
-                            key={widgetPreviewNonce}
-                            src={widgetPreviewUrl}
-                            title="Widget Preview"
-                            className="w-full h-[520px]"
-                          />
-                        ) : (
-                          <div className="p-4 text-sm text-gray-500">Wähle einen Chatbot aus.</div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Save Button */}
-                  <button
-                    type="submit"
-                    disabled={saving}
-                    className="w-full bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
-                  >
-                    {saving ? 'Speichern...' : 'Einstellungen speichern'}
-                  </button>
-                </form>
-              )}
-            </div>
-          </div>
-        </div>
+        )}
       </main>
 
-      {/* Responsive Drawer (mobile bottom sheet, desktop side drawer) */}
+      {/* Drawer */}
       {selectedBot && drawerOpen && (
-        <div>
-          <button
-            type="button"
-            aria-label="Close drawer"
+        <>
+          <div 
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 transition-opacity" 
             onClick={() => setDrawerOpen(false)}
-            className="fixed inset-0 bg-black/30 z-40"
           />
-          <div className="fixed inset-x-0 bottom-0 z-50 max-h-[88vh] rounded-t-2xl bg-white shadow-2xl border-t border-gray-200 overflow-hidden lg:inset-y-0 lg:left-auto lg:right-0 lg:bottom-auto lg:h-full lg:w-[560px] lg:max-h-none lg:rounded-none lg:border-t-0 lg:border-l">
-            <div className="px-4 pt-3 pb-2 border-b border-gray-200">
-              <div className="flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="text-sm font-semibold text-gray-900 truncate">{selectedBot.name}</div>
-                  <div className="text-[11px] text-gray-500 truncate">ID: {selectedBot.id}</div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className={`px-2.5 py-1 text-[11px] font-semibold rounded-full ${
-                    isBotPreparing(selectedBot)
-                      ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white'
-                      : selectedBot.status === 'ACTIVE'
-                        ? 'bg-green-100 text-green-800'
-                        : selectedBot.status === 'DRAFT'
-                          ? 'bg-gray-100 text-gray-800'
-                          : 'bg-yellow-100 text-yellow-800'
-                  }`}>
-                    {isBotPreparing(selectedBot) ? 'Wird vorbereitet' : selectedBot.status}
+          <div className="fixed inset-y-0 right-0 z-50 w-full md:w-[600px] bg-dark-900 border-l border-white/10 shadow-2xl flex flex-col transform transition-transform duration-300">
+            <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between bg-dark-900/50 backdrop-blur">
+              <div>
+                <h2 className="text-lg font-bold text-white">{selectedBot.name}</h2>
+                <div className="flex items-center gap-2 text-xs text-gray-400 mt-0.5">
+                  <span className="font-mono">{selectedBot.id}</span>
+                  <span className="w-1 h-1 rounded-full bg-gray-600" />
+                  <span className={selectedBot.status === 'ACTIVE' ? 'text-green-400' : 'text-yellow-400'}>
+                    {selectedBot.status}
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => setDrawerOpen(false)}
-                    className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs hover:bg-gray-100"
-                  >
-                    Schließen
-                  </button>
                 </div>
               </div>
-
-              <div className="mt-3 grid grid-cols-3 gap-2">
-                <button
-                  onClick={() => setActiveTab('details')}
-                  className={`px-3 py-2 rounded-lg text-xs font-medium ${
-                    activeTab === 'details' ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-50 text-gray-700'
-                  }`}
-                >
-                  Details
-                </button>
-                <button
-                  onClick={() => setActiveTab('preview')}
-                  className={`px-3 py-2 rounded-lg text-xs font-medium ${
-                    activeTab === 'preview' ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-50 text-gray-700'
-                  }`}
-                >
-                  Vorschau
-                </button>
-                <button
-                  onClick={() => setActiveTab('settings')}
-                  className={`px-3 py-2 rounded-lg text-xs font-medium ${
-                    activeTab === 'settings' ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-50 text-gray-700'
-                  }`}
-                >
-                  Einstellungen
-                </button>
-              </div>
+              <button onClick={() => setDrawerOpen(false)} className="p-2 text-gray-400 hover:text-white rounded-lg hover:bg-white/5">
+                <XCircle className="h-6 w-6" />
+              </button>
             </div>
 
-            <div className="p-4 overflow-auto max-h-[calc(88vh-120px)] lg:max-h-[calc(100vh-120px)]">
+            <div className="px-6 pt-4 flex gap-4 border-b border-white/10">
+              {(['details', 'preview', 'settings'] as const).map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
+                    activeTab === tab 
+                      ? 'border-indigo-500 text-indigo-400' 
+                      : 'border-transparent text-gray-400 hover:text-white'
+                  }`}
+                >
+                  {tab === 'details' ? 'Details' : tab === 'preview' ? 'Vorschau' : 'Einstellungen'}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
+              
               {activeTab === 'details' && (
-                <div className="space-y-4">
+                <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
                   {isBotPreparing(selectedBot) && (
-                    <div className="rounded-xl bg-gradient-to-r from-indigo-500 via-blue-500 to-purple-500 text-white p-4 flex items-start gap-3 shadow-lg">
-                      <div className="h-10 w-10 rounded-full border-2 border-white/60 flex items-center justify-center">
-                        <svg className="h-5 w-5 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
+                    <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-xl p-4 flex gap-4">
+                      <div className="h-10 w-10 rounded-full bg-indigo-500/20 flex items-center justify-center flex-shrink-0">
+                        <Zap className="h-5 w-5 text-indigo-400 animate-pulse" />
                       </div>
                       <div>
-                        <p className="font-semibold">Chatbot wird vorbereitet</p>
-                        <p className="text-sm text-indigo-50">Der Scraper verarbeitet gerade deine Website. Das Chatten ist in Kürze möglich.</p>
+                        <h4 className="font-medium text-white">Bot wird trainiert</h4>
+                        <p className="text-sm text-indigo-200 mt-1">Wir analysieren gerade Ihre Website. Das kann einige Minuten dauern.</p>
                       </div>
                     </div>
                   )}
 
                   <div>
-                    <h4 className="font-semibold text-gray-900 mb-2">Wissensquellen</h4>
+                    <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider mb-4">Wissensquellen</h3>
                     {loadingSources ? (
-                      <p className="text-sm text-gray-500">Lade...</p>
+                       <div className="space-y-3">
+                         {[1,2,3].map(i => <div key={i} className="h-10 bg-white/5 rounded-lg animate-pulse" />)}
+                       </div>
                     ) : botSources.length === 0 ? (
-                      <p className="text-sm text-gray-500">Keine Quellen vorhanden</p>
+                      <div className="text-center py-8 border border-dashed border-white/10 rounded-xl">
+                        <p className="text-gray-500 text-sm">Noch keine Quellen hinzugefügt</p>
+                      </div>
                     ) : (
                       <ul className="space-y-2">
                         {botSources.map((source) => (
-                          <li key={source.id} className="text-sm flex items-center gap-2">
-                            {source.status === 'READY' && <CheckCircle className="h-4 w-4 text-green-600" />}
-                            {source.status === 'PENDING' && <Clock className="h-4 w-4 text-yellow-600" />}
-                            {source.status === 'FAILED' && <XCircle className="h-4 w-4 text-red-600" />}
-                            <span className="truncate">{source.label}</span>
+                          <li key={source.id} className="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/5">
+                             <div className="flex items-center gap-3 overflow-hidden">
+                                {source.status === 'READY' ? <CheckCircle className="h-4 w-4 text-green-400 flex-shrink-0" /> :
+                                 source.status === 'FAILED' ? <XCircle className="h-4 w-4 text-red-400 flex-shrink-0" /> :
+                                 <Clock className="h-4 w-4 text-yellow-400 flex-shrink-0" />}
+                                <span className="text-sm text-gray-200 truncate">{source.label}</span>
+                             </div>
+                             <span className="text-[10px] bg-white/5 px-2 py-1 rounded text-gray-500">{source.type}</span>
                           </li>
                         ))}
                       </ul>
                     )}
                   </div>
 
-                  {selectedBot.status === 'ACTIVE' ? (
-                    <div>
-                      <h4 className="font-semibold text-gray-900 mb-2">Embed-Code</h4>
-                      <div className="relative">
-                        <pre className="text-xs bg-gray-900 text-gray-100 rounded-lg p-3 overflow-auto max-h-40">
-                          <code>{snippet}</code>
-                        </pre>
-                        <button
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider mb-4">Integration</h3>
+                    <div className="bg-dark-950 border border-white/10 rounded-xl overflow-hidden">
+                      <div className="flex items-center justify-between px-4 py-2 bg-white/5 border-b border-white/5">
+                        <span className="text-xs text-gray-400 font-mono">embed.js</span>
+                        <button 
                           onClick={() => {
                             navigator.clipboard.writeText(snippet)
-                            setSuccess('Code kopiert!')
+                            setSuccess('Snippet kopiert')
                           }}
-                          className="absolute top-2 right-2 inline-flex items-center gap-1 text-xs bg-indigo-600 text-white px-2 py-1 rounded hover:bg-indigo-700"
+                          className="text-xs flex items-center gap-1 text-indigo-400 hover:text-indigo-300"
                         >
                           <Copy className="h-3 w-3" /> Kopieren
                         </button>
                       </div>
+                      <div className="p-4 overflow-x-auto">
+                        <pre className="text-xs font-mono text-gray-300">
+                          {snippet || '// Bot noch nicht aktiv'}
+                        </pre>
+                      </div>
                     </div>
-                  ) : (
-                    <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800">
-                      Der Bot wird noch vorbereitet. Der Embed-Code steht zur Verfügung, sobald der Status <strong>ACTIVE</strong> erreicht ist.
-                    </div>
-                  )}
+                  </div>
                 </div>
               )}
 
               {activeTab === 'preview' && (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 gap-3">
-                    <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
-                      <div className="flex items-center justify-between gap-3">
-                        <div>
-                          <div className="text-sm font-semibold text-gray-900">Widget-Vorschau</div>
-                          <div className="text-xs text-gray-600">Anpassungen hier sind live, aber erst nach Speichern dauerhaft.</div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setWidgetPreviewNonce((n) => n + 1)}
-                          className="text-xs bg-white border border-gray-300 px-3 py-1.5 rounded-lg hover:bg-gray-100"
-                        >
-                          Neu starten
-                        </button>
-                      </div>
-
-                      <div className="mt-3 space-y-3">
-                        <div>
-                          <label className="block text-xs font-medium text-gray-700 mb-1">Titel</label>
-                          <input
-                            value={editName}
-                            onChange={(e) => setEditName(e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-gray-700 mb-1">Primärfarbe</label>
-                          <div className="flex gap-2 items-center">
-                            <input
-                              type="color"
-                              value={editPrimaryColor}
-                              onChange={(e) => setEditPrimaryColor(e.target.value)}
-                              className="h-10 w-16 border border-gray-300 rounded cursor-pointer"
-                            />
-                            <input
-                              type="text"
-                              value={editPrimaryColor}
-                              onChange={(e) => setEditPrimaryColor(e.target.value)}
-                              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
-                              placeholder="#4F46E5"
-                            />
-                          </div>
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-gray-700 mb-1">Icon</label>
-                          <div className="grid grid-cols-3 gap-2">
-                            {(['robot', 'human', 'pencil'] as const).map((t) => (
-                              <button
-                                key={t}
-                                type="button"
-                                onClick={() => setEditAvatarType(t)}
-                                className={`px-3 py-2 rounded-lg border text-xs font-medium ${
-                                  editAvatarType === t
-                                    ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
-                                    : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
-                                }`}
-                              >
-                                {t === 'robot' ? 'Roboter' : t === 'human' ? 'Mensch' : 'Zeichner'}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-gray-700 mb-1">Begrüßung</label>
-                          <textarea
-                            value={widgetGreeting}
-                            onChange={(e) => setWidgetGreeting(e.target.value)}
-                            rows={3}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
-                            placeholder="z.B. Hallo! Wie können wir dir helfen?"
-                          />
-                        </div>
-                      </div>
+                <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                  <div className="glass-panel p-4 rounded-xl space-y-4">
+                    <h3 className="text-sm font-medium text-white">Vorschau Einstellungen</h3>
+                    <div className="grid gap-4">
+                       <div>
+                         <label className="text-xs text-gray-400 block mb-1.5">Begrüßungstext</label>
+                         <input 
+                           value={widgetGreeting}
+                           onChange={(e) => setWidgetGreeting(e.target.value)}
+                           className="w-full bg-dark-950 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                         />
+                       </div>
                     </div>
-
-                    <div className="rounded-xl border border-gray-200 bg-white overflow-hidden shadow-sm">
-                      <iframe
-                        key={widgetPreviewNonce}
-                        src={widgetPreviewUrl}
-                        title="Widget Preview"
-                        className="w-full h-[560px]"
-                      />
-                    </div>
+                    <button 
+                       onClick={() => setWidgetPreviewNonce(n => n + 1)}
+                       className="w-full py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-xs font-medium text-white transition-colors"
+                    >
+                      Vorschau aktualisieren
+                    </button>
+                  </div>
+                  
+                  <div className="h-[600px] border border-white/10 rounded-xl overflow-hidden bg-white">
+                    <iframe
+                      key={widgetPreviewNonce}
+                      src={widgetPreviewUrl}
+                      title="Widget Vorschau"
+                      className="w-full h-full"
+                    />
                   </div>
                 </div>
               )}
 
               {activeTab === 'settings' && (
-                <form onSubmit={handleSaveSettings} className="space-y-4">
+                <form onSubmit={handleSaveSettings} className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Bot Name</label>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Bot Name</label>
                     <input
                       type="text"
                       value={editName}
                       onChange={(e) => setEditName(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                      required
+                      className="w-full bg-dark-950 border border-white/10 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-indigo-500/50 outline-none transition-all"
                     />
                   </div>
-
+                  
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Beschreibung</label>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Beschreibung</label>
                     <textarea
                       value={editDescription}
                       onChange={(e) => setEditDescription(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                      rows={2}
-                      placeholder="Optionale Beschreibung..."
+                      className="w-full bg-dark-950 border border-white/10 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-indigo-500/50 outline-none transition-all min-h-[80px]"
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Logo URL</label>
-                    <input
-                      type="url"
-                      value={editLogoUrl}
-                      onChange={(e) => setEditLogoUrl(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                      placeholder="https://example.com/logo.png"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      <Palette className="inline h-4 w-4 mr-1" />
-                      Primärfarbe
-                    </label>
-                    <div className="flex gap-2 items-center">
-                      <input
-                        type="color"
-                        value={editPrimaryColor}
-                        onChange={(e) => setEditPrimaryColor(e.target.value)}
-                        className="h-10 w-20 border border-gray-300 rounded cursor-pointer"
-                      />
-                      <input
-                        type="text"
-                        value={editPrimaryColor}
-                        onChange={(e) => setEditPrimaryColor(e.target.value)}
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                        placeholder="#4F46E5"
-                      />
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">Primärfarbe</label>
+                      <div className="flex gap-2">
+                        <input
+                          type="color"
+                          value={editPrimaryColor}
+                          onChange={(e) => setEditPrimaryColor(e.target.value)}
+                          className="h-10 w-12 bg-transparent border border-white/10 rounded cursor-pointer"
+                        />
+                        <input
+                           type="text"
+                           value={editPrimaryColor}
+                           onChange={(e) => setEditPrimaryColor(e.target.value)}
+                           className="flex-1 bg-dark-950 border border-white/10 rounded-lg px-3 text-sm text-white"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">Avatar Stil</label>
+                       <select 
+                         value={editAvatarType}
+                         onChange={(e) => setEditAvatarType(e.target.value as any)}
+                         className="w-full bg-dark-950 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white outline-none"
+                       >
+                         <option value="robot">Roboter</option>
+                         <option value="human">Mensch</option>
+                         <option value="pencil">Minimalistisch</option>
+                       </select>
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Icon im Chat-Widget</label>
-                    <div className="grid grid-cols-3 gap-2">
-                      {(['robot', 'human', 'pencil'] as const).map((t) => (
-                        <button
-                          key={t}
-                          type="button"
-                          onClick={() => setEditAvatarType(t)}
-                          className={`px-3 py-2 rounded-lg border text-sm font-medium ${
-                            editAvatarType === t
-                              ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
-                              : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
-                          }`}
-                        >
-                          {t === 'robot' ? 'Roboter' : t === 'human' ? 'Mensch' : 'Zeichner'}
-                        </button>
-                      ))}
-                    </div>
-                    <p className="text-xs text-gray-500 mt-1">Wird im Widget-Header und bei Bot-Nachrichten angezeigt.</p>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Custom System Prompt (Optional)
-                    </label>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">System Prompt</label>
                     <textarea
                       value={editSystemPrompt}
                       onChange={(e) => setEditSystemPrompt(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent font-mono text-sm"
-                      rows={6}
-                      placeholder="Leer lassen für Standard-Prompt. Beispiel:&#10;Du bist ein Support-Bot für TrendingMedia.&#10;- Sprich aus Unternehmensperspektive (wir, uns)&#10;- Halte Antworten kurz und präzise&#10;- Antworte nur basierend auf den bereitgestellten Infos"
+                      className="w-full bg-dark-950 border border-white/10 rounded-lg px-4 py-3 text-sm font-mono text-gray-300 focus:ring-2 focus:ring-indigo-500/50 outline-none transition-all min-h-[150px]"
+                      placeholder="Du bist ein hilfreicher Assistent..."
                     />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Falls leer, wird der Standard-Prompt verwendet (Unternehmensperspektive, kurze Antworten)
-                    </p>
                   </div>
 
-                  <button
-                    type="submit"
-                    disabled={saving}
-                    className="w-full bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
-                  >
-                    {saving ? 'Speichern...' : 'Einstellungen speichern'}
-                  </button>
+                  <div className="pt-4 border-t border-white/10">
+                    <button
+                      type="submit"
+                      disabled={saving}
+                      className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-3 rounded-lg transition-all shadow-lg shadow-indigo-500/20 disabled:opacity-50"
+                    >
+                      {saving ? 'Speichert...' : 'Änderungen speichern'}
+                    </button>
+                  </div>
                 </form>
               )}
             </div>
           </div>
-        </div>
+        </>
       )}
 
       {/* Create Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full">
-            <div className="p-6 border-b border-gray-200">
-              <h2 className="text-xl font-semibold text-gray-900">
-                {step === 'details' && 'Chatbot erstellen'}
-                {step === 'scraping' && 'Website scrapen'}
-                {step === 'done' && 'Fertig!'}
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-dark-900 border border-white/10 rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6 border-b border-white/10">
+              <h2 className="text-xl font-bold text-white">
+                {step === 'details' && 'Neuen Agenten erstellen'}
+                {step === 'scraping' && 'Wissensdatenbank trainieren'}
+                {step === 'done' && 'Bereit zum Einsatz'}
               </h2>
             </div>
+            
             <div className="p-6">
-              {/* Step 1: Details */}
               {step === 'details' && (
                 <form onSubmit={handleStepOne} className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Chatbot Name *
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Name des Agenten
                     </label>
                     <input
                       type="text"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                      placeholder="z.B. Kundenservice Bot"
+                      className="w-full bg-dark-950 border border-white/10 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-indigo-500/50 outline-none"
+                      placeholder="z.B. Support Assistent"
                       required
+                      autoFocus
                     />
                   </div>
-                  <div className="flex gap-3">
+                  <div className="flex gap-3 pt-2">
                     <button
                       type="button"
                       onClick={() => setShowCreateModal(false)}
-                      className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                      className="flex-1 px-4 py-3 border border-white/10 rounded-lg text-gray-300 hover:bg-white/5 transition-colors"
                     >
                       Abbrechen
                     </button>
                     <button
                       type="submit"
                       disabled={creating}
-                      className="flex-1 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+                      className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-3 rounded-lg font-medium transition-all shadow-lg shadow-indigo-500/20"
                     >
-                      {creating ? 'Erstelle...' : 'Weiter'}
+                      {creating ? 'Erstellt...' : 'Weiter'}
                     </button>
                   </div>
                 </form>
               )}
 
-              {/* Step 2: Scraping */}
               {step === 'scraping' && (
-                <form onSubmit={handleScrapeWebsite} className="space-y-4">
-                  <p className="text-sm text-gray-600">
-                    Geben Sie die Unternehmenswebsite ein, um automatisch Inhalte zu scrapen und den Chatbot zu trainieren.
-                  </p>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Website URL *
-                    </label>
-                    <input
-                      type="url"
-                      value={websiteUrl}
-                      onChange={(e) => setWebsiteUrl(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                      placeholder="https://www.beispiel.com"
-                      required
-                    />
-                    <p className="text-xs text-gray-500 mt-1">Bis zu 50 Seiten werden gescraped</p>
+                <form onSubmit={handleScrapeWebsite} className="space-y-6">
+                  <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-xl p-4">
+                    <p className="text-sm text-indigo-200">
+                      Geben Sie Ihre Website-URL ein. Wir crawlen diese automatisch, um das Wissen des Agenten aufzubauen.
+                    </p>
                   </div>
-                  <div className="flex gap-3">
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Website URL
+                    </label>
+                    <div className="relative">
+                      <Globe className="absolute left-3 top-3.5 h-5 w-5 text-gray-500" />
+                      <input
+                        type="url"
+                        value={websiteUrl}
+                        onChange={(e) => setWebsiteUrl(e.target.value)}
+                        className="w-full bg-dark-950 border border-white/10 rounded-lg pl-10 pr-4 py-3 text-white focus:ring-2 focus:ring-indigo-500/50 outline-none"
+                        placeholder="https://beispiel.de"
+                        required
+                        autoFocus
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3 pt-2">
                     <button
                       type="button"
                       onClick={handleSkipScraping}
-                      className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                      className="flex-1 px-4 py-3 border border-white/10 rounded-lg text-gray-300 hover:bg-white/5 transition-colors"
                     >
                       Überspringen
                     </button>
                     <button
                       type="submit"
-                      className="flex-1 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+                      className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-3 rounded-lg font-medium transition-all shadow-lg shadow-indigo-500/20"
                     >
-                      Website scrapen
+                      Training starten
                     </button>
                   </div>
                 </form>
               )}
 
-              {/* Step 3: Done */}
               {step === 'done' && (
-                <div className="space-y-4">
-                  <div className="text-center py-6">
-                    <CheckCircle className="h-16 w-16 text-green-600 mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Chatbot erstellt!</h3>
-                    {scrapeResult && (
-                      <p className="text-sm text-gray-600">
-                        {scrapeResult.pages} Seiten gescraped, {scrapeResult.sources} Wissensquellen erstellt
-                      </p>
-                    )}
-                  </div>
-                  <button
+                <div className="text-center space-y-6">
+                   <div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mx-auto">
+                     <CheckCircle className="h-10 w-10 text-green-400" />
+                   </div>
+                   <div>
+                     <h3 className="text-xl font-bold text-white mb-2">Agent erfolgreich erstellt!</h3>
+                     <p className="text-gray-400">
+                       Ihr Agent wird jetzt trainiert. Sie können Aussehen und Verhalten in den Einstellungen anpassen.
+                     </p>
+                   </div>
+                   <button
                     onClick={handleFinish}
-                    className="w-full bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700"
+                    className="w-full bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-3 rounded-lg font-medium transition-all shadow-lg shadow-indigo-500/20"
                   >
-                    Fertig
+                    Zum Dashboard
                   </button>
                 </div>
               )}
