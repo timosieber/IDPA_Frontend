@@ -37,6 +37,7 @@ export default function ChatbotTraining() {
     setSources([newSource, ...sources])
     setUrl('')
 
+    // TODO: API call to scrape website
     setTimeout(() => {
       setSources(prev => prev.map(s => 
         s.id === newSource.id 
@@ -84,6 +85,7 @@ export default function ChatbotTraining() {
 
     setSources([newSource, ...sources])
 
+    // TODO: API call to upload file
     setTimeout(() => {
       setSources(prev => prev.map(s => 
         s.id === newSource.id 
@@ -121,13 +123,13 @@ export default function ChatbotTraining() {
         <div className="mb-10">
           <h1 className="text-3xl font-bold tracking-tight">Wissensdatenbank</h1>
           <p className="mt-2 text-gray-400">
-            Trainieren Sie Ihren KI-Agenten durch Hinzufügen von Websites, Texten oder Dateien.
+            Verwalten Sie die Datenquellen, die Ihr KI-Assistent zur Beantwortung von Anfragen nutzen darf.
           </p>
         </div>
 
         {/* Add Knowledge Sources */}
         <div className="glass-panel rounded-xl p-6 mb-8">
-          <h2 className="text-xl font-bold mb-6">Neue Quelle hinzufügen</h2>
+          <h2 className="text-xl font-bold mb-6">Quelle hinzufügen</h2>
           
           {/* Tabs */}
           <div className="flex gap-4 mb-6 border-b border-white/10">
@@ -141,7 +143,7 @@ export default function ChatbotTraining() {
             >
               <div className="flex items-center gap-2">
                 <Globe className="h-5 w-5" />
-                Website scrapen
+                Website indexieren
               </div>
               {activeTab === 'url' && (
                 <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500" />
@@ -157,7 +159,7 @@ export default function ChatbotTraining() {
             >
               <div className="flex items-center gap-2">
                 <FileText className="h-5 w-5" />
-                Manueller Text
+                Text manuell
               </div>
               {activeTab === 'text' && (
                 <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500" />
@@ -173,7 +175,7 @@ export default function ChatbotTraining() {
             >
               <div className="flex items-center gap-2">
                 <FileText className="h-5 w-5" />
-                Datei hochladen
+                Dokumente
               </div>
               {activeTab === 'file' && (
                 <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500" />
@@ -194,7 +196,7 @@ export default function ChatbotTraining() {
                     type="url"
                     value={url}
                     onChange={(e) => setUrl(e.target.value)}
-                    placeholder="https://beispiel.de"
+                    placeholder="https://ihre-firma.ch"
                     className="flex-1 bg-dark-950 border border-white/10 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-indigo-500/50 outline-none transition-all"
                     required
                   />
@@ -206,18 +208,18 @@ export default function ChatbotTraining() {
                     {isLoading ? (
                       <>
                         <RefreshCw className="h-5 w-5 animate-spin" />
-                        Scraping...
+                        Verarbeite...
                       </>
                     ) : (
                       <>
                         <Plus className="h-5 w-5" />
-                        Scraping starten
+                        Indexierung starten
                       </>
                     )}
                   </button>
                 </div>
                 <p className="mt-2 text-sm text-gray-500">
-                  Wir werden automatisch alle Seiten dieser Domain crawlen und indexieren.
+                  Wir analysieren die Struktur Ihrer Website und indexieren relevante Inhalte automatisch.
                 </p>
               </div>
             </form>
@@ -228,19 +230,19 @@ export default function ChatbotTraining() {
             <form onSubmit={handleAddManualText} className="space-y-4">
               <div>
                 <label htmlFor="text" className="block text-sm font-medium text-gray-300 mb-2">
-                  Wissen / FAQ / Infos
+                  Wissen / FAQ / Interna
                 </label>
                 <textarea
                   id="text"
                   value={manualText}
                   onChange={(e) => setManualText(e.target.value)}
                   rows={8}
-                  placeholder="Inhalt hier einfügen (z.B. FAQs, Produktdetails, Infos)..."
+                  placeholder="Kopieren Sie hier Texte hinein, die auf der Website fehlen (z.B. interne Richtlinien, spezielle FAQs)..."
                   className="w-full bg-dark-950 border border-white/10 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-indigo-500/50 outline-none transition-all"
                   required
                 />
                 <p className="mt-2 text-sm text-gray-500">
-                  Fügen Sie spezifische Informationen hinzu, die der Agent perfekt beherrschen soll.
+                  Ergänzen Sie Informationen, die der Assistent priorisiert behandeln soll.
                 </p>
               </div>
               <button
@@ -249,7 +251,7 @@ export default function ChatbotTraining() {
                 className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 transition-colors disabled:opacity-50 font-medium shadow-lg shadow-indigo-500/20 flex items-center gap-2"
               >
                 <Plus className="h-5 w-5" />
-                Wissen hinzufügen
+                Zum Index hinzufügen
               </button>
             </form>
           )}
@@ -259,7 +261,7 @@ export default function ChatbotTraining() {
             <div className="space-y-4">
               <div>
                 <label htmlFor="file" className="block text-sm font-medium text-gray-300 mb-2">
-                  Datei hochladen
+                  Dokument hochladen
                 </label>
                 <input
                   id="file"
@@ -276,10 +278,10 @@ export default function ChatbotTraining() {
           )}
         </div>
 
-        {/* Wissensquellen Liste */}
+        {/* Knowledge Sources List */}
         <div className="glass-panel rounded-xl p-6">
           <h2 className="text-xl font-bold mb-6">
-            Quellen ({sources.length})
+            Aktive Quellen ({sources.length})
           </h2>
 
           {sources.length === 0 ? (
@@ -287,9 +289,9 @@ export default function ChatbotTraining() {
               <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Globe className="h-8 w-8 text-gray-400" />
               </div>
-              <p className="text-gray-300 mb-2">Noch keine Quellen vorhanden</p>
+              <p className="text-gray-300 mb-2">Noch keine Daten vorhanden</p>
               <p className="text-sm text-gray-500">
-                Fügen Sie eine Website, Text oder Datei hinzu, um zu starten.
+                Beginnen Sie mit dem Hinzufügen Ihrer Website oder Dokumente.
               </p>
             </div>
           ) : (
@@ -311,13 +313,13 @@ export default function ChatbotTraining() {
                         {source.status === 'completed' && (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-500/10 text-green-400 rounded-full text-xs border border-green-500/20">
                             <CheckCircle2 className="h-3 w-3" />
-                            Bereit
+                            Aktiv
                           </span>
                         )}
                         {source.status === 'processing' && (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-500/10 text-blue-400 rounded-full text-xs border border-blue-500/20">
                             <RefreshCw className="h-3 w-3 animate-spin" />
-                            Verarbeitet...
+                            Verarbeite...
                           </span>
                         )}
                         {source.status === 'error' && (
@@ -329,9 +331,9 @@ export default function ChatbotTraining() {
                       </div>
 
                       <div className="flex items-center gap-4 text-xs text-gray-500">
-                        <span>Hinzugefügt: {source.createdAt.toLocaleDateString('de-DE')}</span>
+                        <span>Erfasst: {source.createdAt.toLocaleDateString('de-DE')}</span>
                         {source.pageCount && (
-                          <span>{source.pageCount} Seiten gescrapt</span>
+                          <span>{source.pageCount} Seiten indexiert</span>
                         )}
                         <span>Aktualisiert: {source.lastUpdated.toLocaleString('de-DE')}</span>
                       </div>
@@ -346,7 +348,7 @@ export default function ChatbotTraining() {
                         <button
                           onClick={() => handleRescrape(source.id)}
                           className="p-2 text-gray-400 hover:text-indigo-400 hover:bg-white/5 rounded-lg transition-colors"
-                          title="Neu scrapen"
+                          title="Neu indexieren"
                         >
                           <RefreshCw className="h-5 w-5" />
                         </button>
@@ -354,7 +356,7 @@ export default function ChatbotTraining() {
                       <button
                         onClick={() => handleDelete(source.id)}
                         className="p-2 text-gray-400 hover:text-red-400 hover:bg-white/5 rounded-lg transition-colors"
-                        title="Löschen"
+                        title="Entfernen"
                       >
                         <Trash2 className="h-5 w-5" />
                       </button>

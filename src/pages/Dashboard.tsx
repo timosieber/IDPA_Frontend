@@ -172,22 +172,18 @@ export default function Dashboard() {
       setEditAvatarType(avatar === 'human' ? 'human' : avatar === 'pencil' ? 'pencil' : 'robot')
       setWidgetPreviewNonce((n) => n + 1)
 
-      // Use SSE instead of polling for real-time updates
       const controller = new AbortController()
       void streamProvisioningEvents({
         chatbotId: selectedBot.id,
         signal: controller.signal,
         onEvent: (evt) => {
           if (evt.chatbotId !== selectedBot.id) return
-          // Reload sources when status changes
           if (evt.type === 'completed' || evt.type === 'failed' || evt.type === 'snapshot') {
             loadBotSources(selectedBot.id)
-            // Also reload the chatbot list to update status
             void load({ silent: true })
           }
         },
       }).catch((err) => {
-        // Ignore abort errors (expected when component unmounts)
         if (err?.name !== 'AbortError') {
           console.error('SSE stream error:', err)
         }
@@ -225,7 +221,7 @@ export default function Dashboard() {
       setChatbots((prev) => [bot, ...prev.filter((b) => b.id !== bot.id)])
       setNewChatbot(bot)
       setStep('scraping')
-      setSuccess(`Chatbot "${bot.name}" erfolgreich erstellt!`)
+      setSuccess(`Assistent "${bot.name}" erfolgreich angelegt.`) // Corrected: escaped double quote
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Unbekannter Fehler')
     } finally {
@@ -241,7 +237,7 @@ export default function Dashboard() {
     setScrapingBots((prev) => new Set(prev).add(newChatbot.id))
     setSelectedBot(newChatbot)
     setDrawerOpen(true)
-    setSuccess(`Chatbot "${newChatbot.name}" wird erstellt - Scraping läuft im Hintergrund...`)
+    setSuccess(`Lernprozess für "${newChatbot.name}" gestartet.`) // Corrected: escaped double quote
 
     const controller = new AbortController()
     provisioningAbortControllersRef.current.get(newChatbot.id)?.abort()
@@ -269,7 +265,7 @@ export default function Dashboard() {
           })
           provisioningAbortControllersRef.current.get(newChatbot.id)?.abort()
           provisioningAbortControllersRef.current.delete(newChatbot.id)
-          setError(`Scraping für "${newChatbot.name}" fehlgeschlagen: ${evt.error || 'Unbekannter Fehler'}`)
+          setError(`Lernprozess fehlgeschlagen: ${evt.error || 'Unbekannter Fehler'}`)
         }
       },
     }).catch((err) => {
@@ -280,15 +276,15 @@ export default function Dashboard() {
     scrapeWebsite({
       chatbotId: newChatbot.id,
       startUrls: [websiteUrl],
-      maxDepth: 2,
-      maxPages: 50,
+      maxDepth: 3,
+      maxPages: 200,
     }).catch((e) => {
       setScrapingBots((prev) => {
         const updated = new Set(prev)
         updated.delete(newChatbot.id)
         return updated
       })
-      setError(`Scraping für "${newChatbot.name}" fehlgeschlagen: ${e instanceof Error ? e.message : 'Unbekannter Fehler'}`)
+      setError(`Lernprozess fehlgeschlagen: ${e instanceof Error ? e.message : 'Unbekannter Fehler'}`)
     })
   }
 
@@ -307,13 +303,13 @@ export default function Dashboard() {
   }
 
   const onDelete = async (id: string) => {
-    if (!confirm('Chatbot wirklich löschen?')) return
+    if (!confirm('Möchten Sie diesen Assistenten unwiderruflich löschen?')) return
     setError(null)
     try {
       await deleteChatbot(id)
       if (selectedBot?.id === id) setSelectedBot(null)
       await load()
-      setSuccess('Chatbot gelöscht')
+      setSuccess('Assistent gelöscht')
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Unbekannter Fehler')
     }
@@ -334,7 +330,7 @@ export default function Dashboard() {
       })
       setSelectedBot(updated)
       await load()
-      setSuccess('Einstellungen gespeichert!')
+      setSuccess('Konfiguration gespeichert.')
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Fehler beim Speichern')
     } finally {
@@ -343,7 +339,7 @@ export default function Dashboard() {
   }
 
   const activeBots = chatbots.filter(b => b.status === 'ACTIVE').length
-  const totalSources = 0
+  const totalSources = 0 // TODO: real count
 
   return (
     <div className="min-h-screen bg-dark-950 text-white font-sans selection:bg-indigo-500/30">
@@ -358,26 +354,27 @@ export default function Dashboard() {
               <span className="text-lg font-bold tracking-tight text-white">ChatBot Studio</span>
             </div>
             <div className="flex items-center gap-6">
-              <span className="text-sm text-gray-400 font-medium">{user?.name || user?.email || 'Benutzer'}</span>
+              <span className="text-sm text-gray-400 font-medium">{user?.name || user?.email || 'Admin'}</span>
               <button
                 onClick={handleSignOut}
                 className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors text-sm"
               >
                 <LogOut className="h-4 w-4" />
-                <span>Abmelden</span>
+                <span>Logout</span>
               </button>
             </div>
           </div>
         </div>
       </header>
 
-      {/* Hauptinhalt */}
+      {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        {/* Welcome Section */}
         <div className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-white tracking-tight">Willkommen zurück, {user?.name || 'Creator'}</h1>
+            <h1 className="text-3xl font-bold text-white tracking-tight">Cockpit</h1>
             <p className="mt-2 text-gray-400">
-              Verwalten Sie Ihre KI-Agenten und überwachen Sie deren Performance.
+              Übersicht aller aktiven KI-Assistenten und deren Leistungsdaten.
             </p>
           </div>
           <button
@@ -385,7 +382,7 @@ export default function Dashboard() {
             className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2.5 rounded-lg font-medium transition-all shadow-lg shadow-indigo-500/20"
           >
             <Plus className="h-5 w-5" />
-            Neuen Bot erstellen
+            Neuen Assistenten einrichten
           </button>
         </div>
 
@@ -416,7 +413,7 @@ export default function Dashboard() {
               <MessageSquare className="h-24 w-24 text-white" />
             </div>
             <div className="relative z-10">
-              <p className="text-sm font-medium text-gray-400 mb-1">Aktive Agenten</p>
+              <p className="text-sm font-medium text-gray-400 mb-1">Aktive Assistenten</p>
               <div className="flex items-end gap-2">
                 <p className="text-3xl font-bold text-white">{activeBots}</p>
                 <div className="h-2 w-2 rounded-full bg-green-500 mb-2 animate-pulse" />
@@ -428,7 +425,7 @@ export default function Dashboard() {
              <div className="absolute top-0 right-0 p-4 opacity-5">
               <Bot className="h-24 w-24 text-white" />
             </div>
-            <p className="text-sm font-medium text-gray-400 mb-1">Bots Gesamt</p>
+            <p className="text-sm font-medium text-gray-400 mb-1">Gesamt erstellt</p>
             <p className="text-3xl font-bold text-white">{chatbots.length}</p>
           </div>
 
@@ -438,7 +435,7 @@ export default function Dashboard() {
             </div>
             <div className="flex justify-between items-start">
               <div>
-                <p className="text-sm font-medium text-gray-400 mb-1">Wissensquellen</p>
+                <p className="text-sm font-medium text-gray-400 mb-1">Wissensbasis</p>
                 <p className="text-3xl font-bold text-white">{totalSources}</p>
               </div>
               <div className="bg-white/5 p-2 rounded-lg">
@@ -448,22 +445,22 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Chatbots Liste */}
-        <h2 className="text-xl font-bold text-white mb-6">Ihre Agenten</h2>
+        {/* Chatbots Grid */}
+        <h2 className="text-xl font-bold text-white mb-6">Meine Assistenten</h2>
         
         {chatbots.length === 0 ? (
           <div className="glass-panel rounded-xl p-16 text-center border-dashed border-2 border-white/10">
             <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-6">
               <Bot className="h-8 w-8 text-gray-400" />
             </div>
-            <h3 className="text-lg font-semibold text-white mb-2">Noch keine Agenten</h3>
-            <p className="text-gray-400 mb-6 max-w-sm mx-auto">Erstellen Sie Ihren ersten KI-Agenten, um Ihren Support zu automatisieren.</p>
+            <h3 className="text-lg font-semibold text-white mb-2">Noch kein Assistent konfiguriert</h3>
+            <p className="text-gray-400 mb-6 max-w-sm mx-auto">Starten Sie jetzt mit der Automatisierung Ihres Kundensupports.</p>
             <button
               onClick={handleCreateClick}
               className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg font-medium transition-colors"
             >
               <Plus className="h-4 w-4" />
-              Agent erstellen
+              Jetzt einrichten
             </button>
           </div>
         ) : (
@@ -472,23 +469,13 @@ export default function Dashboard() {
               <div
                 key={bot.id}
                 onClick={() => handleSelectBot(bot)}
-                className={`glass-panel rounded-xl p-6 cursor-pointer group hover:border-indigo-500/50 transition-all duration-300 relative overflow-hidden ${
-                  selectedBot?.id === bot.id ? 'ring-2 ring-indigo-500 border-transparent' : ''
-                }`}
+                className={`glass-panel rounded-xl p-6 cursor-pointer group hover:border-indigo-500/50 transition-all duration-300 relative overflow-hidden ${selectedBot?.id === bot.id ? 'ring-2 ring-indigo-500 border-transparent' : ''}`}
               >
+                {/* Status Indicator */}
                 <div className="absolute top-4 right-4">
-                  <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${
-                     isBotPreparing(bot)
-                      ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-400'
-                      : bot.status === 'ACTIVE'
-                        ? 'bg-green-500/10 border-green-500/20 text-green-400'
-                        : 'bg-yellow-500/10 border-yellow-500/20 text-yellow-400'
-                  }`}>
-                    <span className={`w-1.5 h-1.5 rounded-full ${
-                      isBotPreparing(bot) ? 'bg-indigo-400 animate-pulse' : 
-                      bot.status === 'ACTIVE' ? 'bg-green-400' : 'bg-yellow-400'
-                    }`} />
-                    {isBotPreparing(bot) ? 'Wird vorbereitet' : bot.status}
+                  <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${isBotPreparing(bot) ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-400' : bot.status === 'ACTIVE' ? 'bg-green-500/10 border-green-500/20 text-green-400' : 'bg-yellow-500/10 border-yellow-500/20 text-yellow-400'}`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${isBotPreparing(bot) ? 'bg-indigo-400 animate-pulse' : bot.status === 'ACTIVE' ? 'bg-green-400' : 'bg-yellow-400'}`} />
+                    {isBotPreparing(bot) ? 'Lernphase' : bot.status === 'ACTIVE' ? 'Bereit' : 'Entwurf'}
                   </span>
                 </div>
 
@@ -504,7 +491,7 @@ export default function Dashboard() {
                     <h3 className="font-semibold text-white group-hover:text-indigo-400 transition-colors">{bot.name}</h3>
                     <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
                       <Globe className="h-3 w-3" />
-                      <span className="truncate max-w-[140px]">{bot.allowedDomains.length > 0 ? bot.allowedDomains[0] : 'Keine Domains'}</span>
+                      <span className="truncate max-w-[140px]">{bot.allowedDomains.length > 0 ? bot.allowedDomains[0] : 'Keine Domain'}</span>
                     </div>
                   </div>
                 </div>
@@ -512,7 +499,7 @@ export default function Dashboard() {
                 {isBotPreparing(bot) && (
                   <div className="mb-4">
                      <div className="flex justify-between text-xs text-indigo-300 mb-1">
-                       <span>Scraping & Training...</span>
+                       <span>Wissen wird indexiert...</span>
                        <Zap className="h-3 w-3 animate-pulse" />
                      </div>
                      <div className="h-1 w-full bg-gray-800 rounded-full overflow-hidden">
@@ -523,7 +510,7 @@ export default function Dashboard() {
                 
                 <div className="flex items-center justify-between mt-4 pt-4 border-t border-white/5">
                   <div className="text-xs text-gray-500">
-                    Erstellt {new Date(bot.createdAt).toLocaleDateString()}
+                    Erstellt: {new Date(bot.createdAt).toLocaleDateString('de-DE')}
                   </div>
                   <button
                     onClick={(e) => { e.stopPropagation(); onDelete(bot.id) }}
@@ -546,6 +533,7 @@ export default function Dashboard() {
             onClick={() => setDrawerOpen(false)}
           />
           <div className="fixed inset-y-0 right-0 z-50 w-full md:w-[600px] bg-dark-900 border-l border-white/10 shadow-2xl flex flex-col transform transition-transform duration-300">
+            {/* Drawer Header */}
             <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between bg-dark-900/50 backdrop-blur">
               <div>
                 <h2 className="text-lg font-bold text-white">{selectedBot.name}</h2>
@@ -553,7 +541,7 @@ export default function Dashboard() {
                   <span className="font-mono">{selectedBot.id}</span>
                   <span className="w-1 h-1 rounded-full bg-gray-600" />
                   <span className={selectedBot.status === 'ACTIVE' ? 'text-green-400' : 'text-yellow-400'}>
-                    {selectedBot.status}
+                    {selectedBot.status === 'ACTIVE' ? 'Bereit' : 'Lernphase'}
                   </span>
                 </div>
               </div>
@@ -562,22 +550,20 @@ export default function Dashboard() {
               </button>
             </div>
 
+            {/* Drawer Tabs */}
             <div className="px-6 pt-4 flex gap-4 border-b border-white/10">
               {(['details', 'preview', 'settings'] as const).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
-                  className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
-                    activeTab === tab 
-                      ? 'border-indigo-500 text-indigo-400' 
-                      : 'border-transparent text-gray-400 hover:text-white'
-                  }`}
+                  className={`pb-3 text-sm font-medium border-b-2 transition-colors ${activeTab === tab ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-gray-400 hover:text-white'}`}
                 >
                   {tab === 'details' ? 'Details' : tab === 'preview' ? 'Vorschau' : 'Einstellungen'}
                 </button>
               ))}
             </div>
 
+            {/* Drawer Content */}
             <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
               
               {activeTab === 'details' && (
@@ -588,21 +574,21 @@ export default function Dashboard() {
                         <Zap className="h-5 w-5 text-indigo-400 animate-pulse" />
                       </div>
                       <div>
-                        <h4 className="font-medium text-white">Bot wird trainiert</h4>
-                        <p className="text-sm text-indigo-200 mt-1">Wir analysieren gerade Ihre Website. Das kann einige Minuten dauern.</p>
+                        <h4 className="font-medium text-white">Wissensbasis wird aufgebaut</h4>
+                        <p className="text-sm text-indigo-200 mt-1">Das System analysiert Ihre Website. Dies kann einige Minuten dauern.</p>
                       </div>
                     </div>
                   )}
 
                   <div>
-                    <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider mb-4">Wissensquellen</h3>
+                    <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider mb-4">Datenquellen</h3>
                     {loadingSources ? (
                        <div className="space-y-3">
                          {[1,2,3].map(i => <div key={i} className="h-10 bg-white/5 rounded-lg animate-pulse" />)}
                        </div>
                     ) : botSources.length === 0 ? (
                       <div className="text-center py-8 border border-dashed border-white/10 rounded-xl">
-                        <p className="text-gray-500 text-sm">Noch keine Quellen hinzugefügt</p>
+                        <p className="text-gray-500 text-sm">Keine Quellen definiert</p>
                       </div>
                     ) : (
                       <ul className="space-y-2">
@@ -629,7 +615,7 @@ export default function Dashboard() {
                         <button 
                           onClick={() => {
                             navigator.clipboard.writeText(snippet)
-                            setSuccess('Snippet kopiert')
+                            setSuccess('Code in Zwischenablage kopiert')
                           }}
                           className="text-xs flex items-center gap-1 text-indigo-400 hover:text-indigo-300"
                         >
@@ -638,7 +624,7 @@ export default function Dashboard() {
                       </div>
                       <div className="p-4 overflow-x-auto">
                         <pre className="text-xs font-mono text-gray-300">
-                          {snippet || '// Bot noch nicht aktiv'}
+                          {snippet || '// Code verfügbar sobald aktiv'}
                         </pre>
                       </div>
                     </div>
@@ -649,10 +635,10 @@ export default function Dashboard() {
               {activeTab === 'preview' && (
                 <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
                   <div className="glass-panel p-4 rounded-xl space-y-4">
-                    <h3 className="text-sm font-medium text-white">Vorschau Einstellungen</h3>
+                    <h3 className="text-sm font-medium text-white">Vorschau Konfiguration</h3>
                     <div className="grid gap-4">
                        <div>
-                         <label className="text-xs text-gray-400 block mb-1.5">Begrüßungstext</label>
+                         <label className="text-xs text-gray-400 block mb-1.5">Begrüßung</label>
                          <input 
                            value={widgetGreeting}
                            onChange={(e) => setWidgetGreeting(e.target.value)}
@@ -664,7 +650,7 @@ export default function Dashboard() {
                        onClick={() => setWidgetPreviewNonce(n => n + 1)}
                        className="w-full py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-xs font-medium text-white transition-colors"
                     >
-                      Vorschau aktualisieren
+                      Vorschau neu laden
                     </button>
                   </div>
                   
@@ -672,7 +658,7 @@ export default function Dashboard() {
                     <iframe
                       key={widgetPreviewNonce}
                       src={widgetPreviewUrl}
-                      title="Widget Vorschau"
+                      title="Widget Preview"
                       className="w-full h-full"
                     />
                   </div>
@@ -682,7 +668,7 @@ export default function Dashboard() {
               {activeTab === 'settings' && (
                 <form onSubmit={handleSaveSettings} className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Bot Name</label>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Bezeichnung</label>
                     <input
                       type="text"
                       value={editName}
@@ -702,7 +688,7 @@ export default function Dashboard() {
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">Primärfarbe</label>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">Akzentfarbe</label>
                       <div className="flex gap-2">
                         <input
                           type="color"
@@ -719,7 +705,7 @@ export default function Dashboard() {
                       </div>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">Avatar Stil</label>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">Avatar</label>
                        <select 
                          value={editAvatarType}
                          onChange={(e) => setEditAvatarType(e.target.value as any)}
@@ -727,18 +713,18 @@ export default function Dashboard() {
                        >
                          <option value="robot">Roboter</option>
                          <option value="human">Mensch</option>
-                         <option value="pencil">Minimalistisch</option>
+                         <option value="pencil">Symbol</option>
                        </select>
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">System Prompt</label>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">System-Instruktion</label>
                     <textarea
                       value={editSystemPrompt}
                       onChange={(e) => setEditSystemPrompt(e.target.value)}
                       className="w-full bg-dark-950 border border-white/10 rounded-lg px-4 py-3 text-sm font-mono text-gray-300 focus:ring-2 focus:ring-indigo-500/50 outline-none transition-all min-h-[150px]"
-                      placeholder="Du bist ein hilfreicher Assistent..."
+                      placeholder="Sie sind ein hilfreicher Assistent für..."
                     />
                   </div>
 
@@ -748,7 +734,7 @@ export default function Dashboard() {
                       disabled={saving}
                       className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-3 rounded-lg transition-all shadow-lg shadow-indigo-500/20 disabled:opacity-50"
                     >
-                      {saving ? 'Speichert...' : 'Änderungen speichern'}
+                      {saving ? 'Speichert...' : 'Konfiguration speichern'}
                     </button>
                   </div>
                 </form>
@@ -764,9 +750,9 @@ export default function Dashboard() {
           <div className="bg-dark-900 border border-white/10 rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="p-6 border-b border-white/10">
               <h2 className="text-xl font-bold text-white">
-                {step === 'details' && 'Neuen Agenten erstellen'}
-                {step === 'scraping' && 'Wissensdatenbank trainieren'}
-                {step === 'done' && 'Bereit zum Einsatz'}
+                {step === 'details' && 'Assistent einrichten'}
+                {step === 'scraping' && 'Wissen trainieren'}
+                {step === 'done' && 'Einsatzbereit'}
               </h2>
             </div>
             
@@ -775,14 +761,14 @@ export default function Dashboard() {
                 <form onSubmit={handleStepOne} className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Name des Agenten
+                      Bezeichnung
                     </label>
                     <input
                       type="text"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       className="w-full bg-dark-950 border border-white/10 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-indigo-500/50 outline-none"
-                      placeholder="z.B. Support Assistent"
+                      placeholder="z.B. Support-Bot DE"
                       required
                       autoFocus
                     />
@@ -800,7 +786,7 @@ export default function Dashboard() {
                       disabled={creating}
                       className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-3 rounded-lg font-medium transition-all shadow-lg shadow-indigo-500/20"
                     >
-                      {creating ? 'Erstellt...' : 'Weiter'}
+                      {creating ? 'Wird angelegt...' : 'Weiter'}
                     </button>
                   </div>
                 </form>
@@ -810,13 +796,13 @@ export default function Dashboard() {
                 <form onSubmit={handleScrapeWebsite} className="space-y-6">
                   <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-xl p-4">
                     <p className="text-sm text-indigo-200">
-                      Geben Sie Ihre Website-URL ein. Wir crawlen diese automatisch, um das Wissen des Agenten aufzubauen.
+                      Geben Sie Ihre Website-URL ein. Das System erfasst automatisch alle relevanten Unterseiten.
                     </p>
                   </div>
                   
                   <div>
                     <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Website URL
+                      Unternehmens-Website
                     </label>
                     <div className="relative">
                       <Globe className="absolute left-3 top-3.5 h-5 w-5 text-gray-500" />
@@ -825,7 +811,7 @@ export default function Dashboard() {
                         value={websiteUrl}
                         onChange={(e) => setWebsiteUrl(e.target.value)}
                         className="w-full bg-dark-950 border border-white/10 rounded-lg pl-10 pr-4 py-3 text-white focus:ring-2 focus:ring-indigo-500/50 outline-none"
-                        placeholder="https://beispiel.de"
+                        placeholder="https://ihre-firma.ch"
                         required
                         autoFocus
                       />
@@ -838,13 +824,13 @@ export default function Dashboard() {
                       onClick={handleSkipScraping}
                       className="flex-1 px-4 py-3 border border-white/10 rounded-lg text-gray-300 hover:bg-white/5 transition-colors"
                     >
-                      Überspringen
+                      Später
                     </button>
                     <button
                       type="submit"
                       className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-3 rounded-lg font-medium transition-all shadow-lg shadow-indigo-500/20"
                     >
-                      Training starten
+                      Analyse starten
                     </button>
                   </div>
                 </form>
@@ -856,16 +842,16 @@ export default function Dashboard() {
                      <CheckCircle className="h-10 w-10 text-green-400" />
                    </div>
                    <div>
-                     <h3 className="text-xl font-bold text-white mb-2">Agent erfolgreich erstellt!</h3>
+                     <h3 className="text-xl font-bold text-white mb-2">Basis-Setup abgeschlossen</h3>
                      <p className="text-gray-400">
-                       Ihr Agent wird jetzt trainiert. Sie können Aussehen und Verhalten in den Einstellungen anpassen.
+                       Der Lernprozess läuft im Hintergrund. Sie können bereits weitere Einstellungen vornehmen.
                      </p>
                    </div>
                    <button
                     onClick={handleFinish}
                     className="w-full bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-3 rounded-lg font-medium transition-all shadow-lg shadow-indigo-500/20"
                   >
-                    Zum Dashboard
+                    Zum Cockpit
                   </button>
                 </div>
               )}
