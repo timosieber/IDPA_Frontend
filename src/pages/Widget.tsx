@@ -413,6 +413,26 @@ export default function Widget() {
     }
   }, [player.state, playingMessageIndex])
 
+  // Auto-start recording when voice mode is enabled
+  useEffect(() => {
+    if (voiceMode && ready && recorder.state === 'idle' && !sending) {
+      recorder.startRecording()
+    }
+  }, [voiceMode, ready, recorder.state, sending])
+
+  // Auto-restart recording after sending a voice message (continuous conversation)
+  useEffect(() => {
+    if (voiceMode && ready && !sending && recorder.state === 'idle' && player.state === 'idle') {
+      // Small delay to allow response audio to finish
+      const timer = setTimeout(() => {
+        if (voiceMode && recorder.state === 'idle' && !sending) {
+          recorder.startRecording()
+        }
+      }, 500)
+      return () => clearTimeout(timer)
+    }
+  }, [voiceMode, ready, sending, recorder.state, player.state])
+
   // Terms acceptance overlay
   if (!termsAccepted) {
     return (
