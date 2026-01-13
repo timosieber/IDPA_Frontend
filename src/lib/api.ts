@@ -245,6 +245,80 @@ export type ProvisioningEvent =
   | { type: 'completed'; chatbotId: string; status: 'ACTIVE' }
   | { type: 'failed'; chatbotId: string; status: Chatbot['status'] | string; error?: string }
 
+// ============================================================================
+// Voice API (Speech-to-Text & Text-to-Speech)
+// ============================================================================
+
+export interface TranscriptionResult {
+  text: string
+  language?: string
+  duration?: number
+}
+
+export interface VoiceMessageResponse {
+  sessionId: string
+  transcription: TranscriptionResult
+  rag: RagResponse
+  audio: string | null // Base64 encoded audio
+  audioContentType: string | null
+}
+
+/**
+ * Send a voice message (audio → transcription → chat → optional TTS)
+ */
+export async function sendVoiceMessage(params: {
+  sessionId: string
+  token: string
+  audioBlob: Blob
+  synthesize?: boolean
+}): Promise<VoiceMessageResponse> {
+  const url = new URL(`${BACKEND_URL}/api/voice/message`)
+  url.searchParams.set('sessionId', params.sessionId)
+  url.searchParams.set('synthesize', String(params.synthesize ?? true))
+
+  const res = await fetch(url.toString(), {
+    method: 'POST',
+    headers: {
+      'Content-Type': params.audioBlob.type,
+      Authorization: `Bearer ${params.token}`,
+    },
+    body: params.audioBlob,
+  })
+  if (!res.ok) {
+    const errorText = await res.text().catch(() => '')
+    throw new Error(`Voice-Nachricht fehlgeschlagen (${res.status}): ${errorText}`)
+  }
+  return res.json()
+}
+
+/**
+ * Synthesize text to speech
+ */
+export async function synthesizeSpeech(params: {
+  sessionId: string
+  token: string
+  text: string
+  voice?: 'alloy' | 'echo' | 'fable' | 'onyx' | 'nova' | 'shimmer'
+}): Promise<Blob> {
+  const url = new URL(`${BACKEND_URL}/api/voice/synthesize`)
+  url.searchParams.set('sessionId', params.sessionId)
+
+  const res = await fetch(url.toString(), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${params.token}`,
+    },
+    body: JSON.stringify({ text: params.text, voice: params.voice }),
+  })
+  if (!res.ok) throw new Error(`Sprachsynthese fehlgeschlagen (${res.status})`)
+  return res.blob()
+}
+
+// ============================================================================
+// Provisioning Events Stream
+// ============================================================================
+
 export async function streamProvisioningEvents(params: {
   chatbotId: string
   onEvent: (event: ProvisioningEvent) => void

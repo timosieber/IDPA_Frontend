@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react'
-import { createSession, sendMessage, type ChatSource } from '../lib/api'
+import { createSession, sendMessage, sendVoiceMessage, synthesizeSpeech, type ChatSource } from '../lib/api'
+import { useVoiceRecorder } from '../hooks/useVoiceRecorder'
+import { useAudioPlayer } from '../hooks/useAudioPlayer'
 
 type ChatMessage = {
   role: 'user' | 'assistant'
@@ -89,6 +91,40 @@ const renderContentWithLinks = (content: string, primaryColor: string) => {
     )
   })
 }
+
+// Voice mode icons
+const MicrophoneIcon = ({ className = '' }: { className?: string }) => (
+  <svg className={className} width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M12 2a3 3 0 00-3 3v6a3 3 0 006 0V5a3 3 0 00-3-3z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M19 10v1a7 7 0 01-14 0v-1M12 19v3M8 22h8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+)
+
+const KeyboardIcon = ({ className = '' }: { className?: string }) => (
+  <svg className={className} width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="2" y="4" width="20" height="16" rx="2" stroke="currentColor" strokeWidth="2"/>
+    <path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M8 12h.01M12 12h.01M16 12h.01M8 16h8" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+  </svg>
+)
+
+const PlayIcon = ({ className = '' }: { className?: string }) => (
+  <svg className={className} width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M5 3l14 9-14 9V3z" fill="currentColor"/>
+  </svg>
+)
+
+const PauseIcon = ({ className = '' }: { className?: string }) => (
+  <svg className={className} width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="6" y="4" width="4" height="16" fill="currentColor"/>
+    <rect x="14" y="4" width="4" height="16" fill="currentColor"/>
+  </svg>
+)
+
+const StopIcon = ({ className = '' }: { className?: string }) => (
+  <svg className={className} width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="4" y="4" width="16" height="16" rx="2" fill="currentColor"/>
+  </svg>
+)
 
 const AvatarIcon = ({ type, color }: { type: AvatarType; color: string }) => {
   const common = { width: 18, height: 18, viewBox: '0 0 24 24', fill: 'none', xmlns: 'http://www.w3.org/2000/svg' }
@@ -180,6 +216,14 @@ export default function Widget() {
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
   const [openSourcesFor, setOpenSourcesFor] = useState<number | null>(null)
+
+  // Voice mode state
+  const [voiceMode, setVoiceMode] = useState(false)
+  const [autoPlayResponse, setAutoPlayResponse] = useState(true)
+  const [playingMessageIndex, setPlayingMessageIndex] = useState<number | null>(null)
+  const recorder = useVoiceRecorder()
+  const player = useAudioPlayer()
+
   const [termsAccepted, setTermsAccepted] = useState<boolean>(() => {
     try {
       return sessionStorage.getItem(TERMS_ACCEPTED_KEY) === 'true'
@@ -291,6 +335,84 @@ export default function Widget() {
     }
   }
 
+  // Voice message handler
+  const onVoiceSend = async () => {
+    if (!sessionId || !token) return
+
+    const audioBlob = await recorder.stopRecording()
+    if (!audioBlob || audioBlob.size < 1000) {
+      // Too short, likely noise
+      return
+    }
+
+    setSending(true)
+    setError(null)
+    try {
+      const res = await sendVoiceMessage({
+        sessionId,
+        token,
+        audioBlob,
+        synthesize: autoPlayResponse,
+      })
+
+      // Add user message (transcribed)
+      setMessages((m) => [...m, { role: 'user', content: res.transcription.text }])
+
+      // Build answer from RAG response
+      const answer = res.rag.unknown
+        ? res.rag.reason || 'Das kann ich leider nicht beantworten.'
+        : res.rag.claims.map((c) => c.text).join('\n\n')
+
+      // Add assistant message
+      const sources: ChatSource[] = res.rag.sources.map((s) => ({
+        content: '',
+        metadata: {
+          chunk_id: s.chunk_id,
+          title: s.title,
+          sourceUrl: s.canonical_url || s.original_url || s.uri || '',
+        },
+        score: 1,
+      }))
+      setMessages((m) => [...m, { role: 'assistant', content: answer, sources }])
+
+      // Play audio response if available
+      if (res.audio && res.audioContentType && autoPlayResponse) {
+        await player.play(res.audio, res.audioContentType)
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Sprachnachricht fehlgeschlagen')
+    } finally {
+      setSending(false)
+    }
+  }
+
+  // Play a specific message as audio
+  const playMessage = async (messageIndex: number, content: string) => {
+    if (player.state === 'playing' && playingMessageIndex === messageIndex) {
+      player.pause()
+      return
+    }
+    if (player.state === 'paused' && playingMessageIndex === messageIndex) {
+      player.resume()
+      return
+    }
+
+    setPlayingMessageIndex(messageIndex)
+    try {
+      const blob = await synthesizeSpeech({ sessionId, token, text: content })
+      await player.playBlob(blob)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Vorlesen fehlgeschlagen')
+    }
+  }
+
+  // Reset playing message when audio stops
+  useEffect(() => {
+    if (player.state === 'idle' && playingMessageIndex !== null) {
+      setPlayingMessageIndex(null)
+    }
+  }, [player.state, playingMessageIndex])
+
   // Terms acceptance overlay
   if (!termsAccepted) {
     return (
@@ -397,6 +519,46 @@ export default function Widget() {
                     {renderContentWithLinks(m.content, m.role === 'user' ? '#FFFFFF' : primaryColor)}
                   </div>
 
+                  {/* Voice playback button for assistant messages */}
+                  {m.role === 'assistant' && voiceMode && (
+                    <div className="mt-1.5 flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => playMessage(i, m.content)}
+                        disabled={player.state === 'loading'}
+                        className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 disabled:opacity-50"
+                      >
+                        {player.state === 'playing' && playingMessageIndex === i ? (
+                          <>
+                            <PauseIcon /> Pause
+                          </>
+                        ) : player.state === 'paused' && playingMessageIndex === i ? (
+                          <>
+                            <PlayIcon /> Fortsetzen
+                          </>
+                        ) : player.state === 'loading' && playingMessageIndex === i ? (
+                          <>
+                            <span className="h-3 w-3 animate-spin rounded-full border-2 border-gray-400 border-t-transparent" />
+                            Lädt...
+                          </>
+                        ) : (
+                          <>
+                            <PlayIcon /> Vorlesen
+                          </>
+                        )}
+                      </button>
+                      {player.state !== 'idle' && playingMessageIndex === i && (
+                        <button
+                          type="button"
+                          onClick={() => player.stop()}
+                          className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600"
+                        >
+                          <StopIcon /> Stop
+                        </button>
+                      )}
+                    </div>
+                  )}
+
                   {m.role === 'assistant' && uniqueSources(m.sources).length > 0 && (
                     <div className="mt-2 flex justify-end">
                       <div className="relative group">
@@ -464,24 +626,109 @@ export default function Widget() {
             </div>
           )}
         </main>
-        <form onSubmit={onSend} className="p-3 border-t bg-white/70 backdrop-blur flex gap-2">
-          <input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder={ready ? 'Nachricht eingeben…' : 'Wird vorbereitet…'}
-            disabled={!ready || sending}
-            className="flex-1 rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100"
-          />
-          <button
-            disabled={!ready || sending}
-            className="rounded-xl text-white px-4 py-2 text-sm font-medium shadow-sm disabled:opacity-60"
-            style={{
-              backgroundColor: primaryColor,
-              opacity: !ready || sending ? 0.6 : 1,
-            }}
-          >
-            {ready ? (sending ? 'Sende…' : 'Senden') : 'Bereite vor…'}
-          </button>
+        <form onSubmit={onSend} className="p-3 border-t bg-white/70 backdrop-blur">
+          {/* Voice mode toggle */}
+          <div className="flex items-center gap-2 mb-2">
+            <button
+              type="button"
+              onClick={() => setVoiceMode(!voiceMode)}
+              className={`p-1.5 rounded-lg transition-colors ${
+                voiceMode ? 'bg-indigo-100 text-indigo-600' : 'text-gray-400 hover:text-gray-600'
+              }`}
+              title={voiceMode ? 'Textmodus' : 'Sprachmodus'}
+            >
+              {voiceMode ? <KeyboardIcon /> : <MicrophoneIcon />}
+            </button>
+            {voiceMode && (
+              <label className="flex items-center gap-1.5 text-xs text-gray-500">
+                <input
+                  type="checkbox"
+                  checked={autoPlayResponse}
+                  onChange={(e) => setAutoPlayResponse(e.target.checked)}
+                  className="rounded border-gray-300"
+                />
+                Antwort vorlesen
+              </label>
+            )}
+            {recorder.error && (
+              <span className="text-xs text-red-500">{recorder.error}</span>
+            )}
+          </div>
+
+          {/* Input area */}
+          <div className="flex gap-2">
+            {voiceMode ? (
+              /* Voice input */
+              recorder.state === 'idle' ? (
+                <button
+                  type="button"
+                  onClick={recorder.startRecording}
+                  disabled={!ready || sending}
+                  className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm shadow-sm hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  <MicrophoneIcon className="text-gray-500" />
+                  <span className="text-gray-600">Zum Sprechen klicken</span>
+                </button>
+              ) : (
+                <div className="flex-1 flex items-center gap-2">
+                  {/* Audio level indicator */}
+                  <div className="flex-1 h-10 bg-gray-100 rounded-xl overflow-hidden relative">
+                    <div
+                      className="absolute inset-y-0 left-0 bg-indigo-500 transition-all duration-75"
+                      style={{ width: `${recorder.audioLevel * 100}%` }}
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center text-sm text-gray-600">
+                      {recorder.state === 'recording' ? (
+                        <span className="flex items-center gap-2">
+                          <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
+                          Aufnahme läuft...
+                        </span>
+                      ) : (
+                        'Verarbeite...'
+                      )}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={onVoiceSend}
+                    disabled={recorder.state === 'processing' || sending}
+                    className="rounded-xl text-white px-4 py-2.5 text-sm font-medium shadow-sm disabled:opacity-60"
+                    style={{ backgroundColor: primaryColor }}
+                  >
+                    Senden
+                  </button>
+                  <button
+                    type="button"
+                    onClick={recorder.cancelRecording}
+                    className="rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-600 hover:bg-gray-50"
+                  >
+                    Abbrechen
+                  </button>
+                </div>
+              )
+            ) : (
+              /* Text input (existing) */
+              <>
+                <input
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  placeholder={ready ? 'Nachricht eingeben…' : 'Wird vorbereitet…'}
+                  disabled={!ready || sending}
+                  className="flex-1 rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100"
+                />
+                <button
+                  disabled={!ready || sending}
+                  className="rounded-xl text-white px-4 py-2 text-sm font-medium shadow-sm disabled:opacity-60"
+                  style={{
+                    backgroundColor: primaryColor,
+                    opacity: !ready || sending ? 0.6 : 1,
+                  }}
+                >
+                  {ready ? (sending ? 'Sende…' : 'Senden') : 'Bereite vor…'}
+                </button>
+              </>
+            )}
+          </div>
         </form>
       </div>
     </div>
