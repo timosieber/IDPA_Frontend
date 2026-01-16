@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { createSession, sendMessage, sendVoiceMessage, synthesizeSpeech, type ChatSource } from '../lib/api'
 import { useVoiceRecorder } from '../hooks/useVoiceRecorder'
 import { useAudioPlayer } from '../hooks/useAudioPlayer'
@@ -216,6 +216,7 @@ export default function Widget() {
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
   const [openSourcesFor, setOpenSourcesFor] = useState<number | null>(null)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
 
   // Voice conversation mode state
   const [voiceMode, setVoiceMode] = useState(false)
@@ -455,52 +456,102 @@ export default function Widget() {
     }
   }, [player.state, playingMessageIndex])
 
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages, sending])
+
   // Removed duplicate auto-start effects - unified in single effect above
 
-  // Terms acceptance overlay
+  // Terms acceptance overlay - redesigned for better first impression
   if (!termsAccepted) {
     return (
       <div
-        className="h-screen w-screen bg-gradient-to-b from-indigo-50 via-white to-white text-gray-900"
-        style={{ '--primary': primaryColor } as CSSProperties}
+        className="h-[100dvh] w-screen bg-gradient-to-b from-indigo-50 via-white to-white text-gray-900"
+        style={{ '--primary': primaryColor, paddingBottom: 'env(safe-area-inset-bottom)', paddingTop: 'env(safe-area-inset-top)' } as CSSProperties}
       >
-        <div className="h-full flex flex-col items-center justify-center p-6">
-          <div className="max-w-md w-full bg-white rounded-2xl shadow-lg border border-gray-200 p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="h-10 w-10 rounded-full bg-indigo-50 ring-1 ring-indigo-100 flex items-center justify-center">
-                <AvatarIcon type={avatarType} color={primaryColor} />
+        <div className="h-full flex flex-col">
+          {/* Preview header - shows what chat will look like */}
+          <header className="px-4 py-3 border-b border-gray-100 bg-white/80 backdrop-blur-md">
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <div className="h-10 w-10 rounded-full bg-gradient-to-br from-gray-50 to-gray-100 ring-1 ring-gray-200 shadow-sm flex items-center justify-center">
+                  <AvatarIcon type={avatarType} color={primaryColor} />
+                </div>
+                <div className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white bg-green-500" />
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-gray-900">{headerTitle}</h2>
-                <p className="text-sm text-gray-500">Support-Chat</p>
+                <h1 className="text-sm font-semibold text-gray-900">{headerTitle}</h1>
+                <p className="text-xs text-green-600 flex items-center gap-1">
+                  <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
+                  Bereit zu helfen
+                </p>
               </div>
             </div>
+          </header>
 
-            <div className="mb-6">
-              <h3 className="text-sm font-medium text-gray-900 mb-2">Nutzungsbedingungen</h3>
-              <div className="text-sm text-gray-600 space-y-2 bg-gray-50 rounded-lg p-3 border border-gray-100 max-h-48 overflow-auto">
-                <p>Willkommen! Bevor Sie diesen Chat nutzen, beachten Sie bitte:</p>
-                <ul className="list-disc list-inside space-y-1 text-xs">
-                  <li>Dieser Chatbot wird von einer KI betrieben und kann Fehler machen.</li>
-                  <li>Die Antworten dienen nur zur Information und ersetzen keine professionelle Beratung.</li>
-                  <li>Ihre Nachrichten werden zur Verarbeitung an unsere Server übermittelt.</li>
-                  <li>Bitte geben Sie keine sensiblen persönlichen Daten ein.</li>
-                </ul>
+          {/* Welcome content */}
+          <main className="flex-1 flex flex-col items-center justify-center p-6">
+            <div className="max-w-sm w-full text-center">
+              {/* Animated greeting bubble */}
+              <div className="mb-8 inline-flex items-start gap-2 text-left">
+                <div className="h-8 w-8 rounded-full bg-gradient-to-br from-gray-50 to-gray-100 ring-1 ring-gray-200 shadow-sm flex items-center justify-center flex-shrink-0">
+                  <AvatarIcon type={avatarType} color={primaryColor} />
+                </div>
+                <div className="rounded-2xl rounded-tl-md bg-white px-4 py-3 shadow-sm ring-1 ring-gray-100">
+                  <p className="text-sm text-gray-900">
+                    {greeting || `Hallo! Ich bin ${headerTitle}. Wie kann ich Ihnen heute helfen?`}
+                  </p>
+                </div>
               </div>
+
+              <h2 className="text-xl font-semibold text-gray-900 mb-2">
+                Willkommen beim Support-Chat
+              </h2>
+              <p className="text-sm text-gray-600 mb-6">
+                Ich beantworte Ihre Fragen sofort – rund um die Uhr.
+              </p>
+
+              {/* Collapsed terms - expandable */}
+              <details className="mb-6 text-left bg-gray-50 rounded-xl border border-gray-100">
+                <summary className="text-xs text-gray-600 cursor-pointer hover:text-gray-800 list-none px-4 py-3 flex items-center gap-2 select-none">
+                  <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Hinweise zur Nutzung
+                  <svg className="h-3 w-3 ml-auto transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </summary>
+                <div className="px-4 pb-3 text-xs text-gray-600 space-y-1.5 border-t border-gray-100 pt-3">
+                  <p className="flex items-start gap-2">
+                    <span className="text-amber-500">•</span>
+                    Dieser Chat wird von KI betrieben und kann Fehler machen.
+                  </p>
+                  <p className="flex items-start gap-2">
+                    <span className="text-amber-500">•</span>
+                    Antworten dienen zur Information, nicht als Beratung.
+                  </p>
+                  <p className="flex items-start gap-2">
+                    <span className="text-amber-500">•</span>
+                    Bitte keine sensiblen Daten eingeben.
+                  </p>
+                </div>
+              </details>
+
+              <button
+                onClick={handleAcceptTerms}
+                className="w-full rounded-xl text-white px-6 py-3.5 text-sm font-medium shadow-md hover:shadow-lg transition-all duration-200 active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-offset-2"
+                style={{ backgroundColor: primaryColor, '--tw-ring-color': primaryColor } as CSSProperties}
+              >
+                Chat starten
+              </button>
+
+              <p className="mt-4 text-[11px] text-gray-400">
+                Mit dem Start akzeptieren Sie unsere Nutzungsbedingungen
+              </p>
             </div>
-
-            <button
-              onClick={handleAcceptTerms}
-              className="w-full rounded-xl text-white px-4 py-3 text-sm font-medium shadow-sm hover:opacity-90 transition-opacity"
-              style={{ backgroundColor: primaryColor }}
-            >
-              Akzeptieren und Chat starten
-            </button>
-
-            <p className="mt-3 text-xs text-gray-400 text-center">
-              Mit dem Klick auf "Akzeptieren" stimmen Sie den Nutzungsbedingungen zu.
-            </p>
-          </div>
+          </main>
         </div>
       </div>
     )
@@ -508,69 +559,90 @@ export default function Widget() {
 
   return (
     <div
-      className="h-screen w-screen bg-gradient-to-b from-indigo-50 via-white to-white text-gray-900"
-      style={{ '--primary': primaryColor } as CSSProperties}
+      className="h-[100dvh] w-screen bg-white text-gray-900"
+      style={{ '--primary': primaryColor, paddingBottom: 'env(safe-area-inset-bottom)', paddingTop: 'env(safe-area-inset-top)' } as CSSProperties}
     >
       <div className="h-full flex flex-col">
-        <header className="px-4 py-3 border-b bg-white/70 backdrop-blur">
+        {/* Minimal Header */}
+        <header className="px-4 py-2.5 border-b border-gray-100 bg-white">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 min-w-0">
-              <div className="h-8 w-8 rounded-full bg-white ring-1 ring-gray-200 shadow-sm flex items-center justify-center">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div
+                className="h-8 w-8 rounded-full flex items-center justify-center"
+                style={{ backgroundColor: `${primaryColor}15` }}
+              >
                 <AvatarIcon type={avatarType} color={primaryColor} />
               </div>
               <div className="min-w-0">
-                <div className="text-sm font-semibold truncate">{headerTitle}</div>
-                <div className="text-[11px] text-gray-500 truncate max-w-[240px]">Support-Chat</div>
+                <h1 className="text-sm font-medium text-gray-900 truncate">{headerTitle}</h1>
               </div>
             </div>
-            <div
-              className={`h-2.5 w-2.5 rounded-full ${ready ? 'bg-green-500' : error ? 'bg-red-500' : 'animate-pulse'}`}
-              style={!ready && !error ? { backgroundColor: primaryColor } : undefined}
-            />
+            {/* Minimal status indicator */}
+            <div className="flex items-center gap-1.5">
+              <div
+                className={`h-2 w-2 rounded-full ${
+                  ready ? 'bg-green-500' : error ? 'bg-red-400' : 'bg-amber-400 animate-pulse'
+                }`}
+              />
+              <span className="text-[11px] text-gray-400">
+                {sending ? 'Schreibt...' : ready ? 'Online' : error ? 'Offline' : 'Verbindet...'}
+              </span>
+            </div>
           </div>
         </header>
-        <main className="flex-1 p-3 overflow-auto space-y-3">
+        {/* Chat Messages Area */}
+        <main
+          className="flex-1 px-4 py-4 overflow-auto space-y-4 bg-gray-50/50"
+          role="log"
+          aria-label="Chat-Nachrichten"
+          aria-live="polite"
+          aria-relevant="additions"
+        >
           {isPreparing && (
-            <div className="flex items-center gap-3 bg-indigo-50 text-indigo-700 px-3 py-2 rounded-lg border border-indigo-100">
-              <svg className="h-5 w-5 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              <div>
-                <div className="text-sm font-medium">Chatbot wird vorbereitet</div>
-                <div className="text-xs text-indigo-600">Scraper lädt Inhalte – gleich geht es los.</div>
+            <div className="flex items-center justify-center py-8">
+              <div className="flex items-center gap-2 text-gray-400">
+                <svg className="h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span className="text-sm">Wird vorbereitet...</span>
               </div>
             </div>
           )}
-          {error && <div className="text-sm text-red-600">{error}</div>}
+          {error && <div className="text-sm text-red-500 text-center py-2">{error}</div>}
           {messages.map((m, i) => (
-            <div key={i} className={`max-w-[86%] ${m.role === 'user' ? 'ml-auto' : 'mr-auto'}`}>
-              <div className={`flex gap-2 items-end ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+            <div key={i} className={`${m.role === 'user' ? 'flex justify-end' : 'flex justify-start'}`}>
+              <div className={`max-w-[85%] ${m.role === 'user' ? '' : 'flex gap-2'}`}>
                 {m.role === 'assistant' && (
-                  <div className="h-7 w-7 rounded-full bg-white ring-1 ring-gray-200 shadow-sm flex items-center justify-center">
+                  <div
+                    className="h-6 w-6 rounded-full flex items-center justify-center flex-shrink-0 mt-1"
+                    style={{ backgroundColor: `${primaryColor}15` }}
+                  >
                     <AvatarIcon type={avatarType} color={primaryColor} />
                   </div>
                 )}
-                <div
-                  className={`rounded-2xl px-3 py-2 shadow-sm ring-1 ${
-                    m.role === 'user'
-                      ? 'text-white ring-indigo-600/20'
-                      : 'bg-white text-gray-900 ring-gray-200'
-                  }`}
-                  style={m.role === 'user' ? { backgroundColor: primaryColor } : undefined}
-                >
-                  <div className="whitespace-pre-wrap text-sm leading-relaxed">
-                    {renderContentWithLinks(m.content, m.role === 'user' ? '#FFFFFF' : primaryColor)}
-                  </div>
+                <div>
+                  <div
+                    className={`rounded-2xl px-4 py-2.5 ${
+                      m.role === 'user'
+                        ? 'rounded-tr-sm text-white'
+                        : 'rounded-tl-sm bg-white text-gray-800 shadow-sm'
+                    }`}
+                    style={m.role === 'user' ? { backgroundColor: primaryColor } : undefined}
+                  >
+                    <p className="whitespace-pre-wrap text-[14px] leading-relaxed">
+                      {renderContentWithLinks(m.content, m.role === 'user' ? '#FFFFFF' : primaryColor)}
+                    </p>
 
                   {/* Voice playback button for assistant messages */}
                   {m.role === 'assistant' && voiceMode && (
-                    <div className="mt-1.5 flex items-center gap-2">
+                    <div className="mt-2 flex items-center gap-2">
                       <button
                         type="button"
                         onClick={() => playMessage(i, m.content)}
                         disabled={player.state === 'loading'}
-                        className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 disabled:opacity-50"
+                        className="inline-flex items-center justify-center gap-1.5 min-h-[44px] min-w-[44px] px-3 py-2 text-xs text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        aria-label={player.state === 'playing' && playingMessageIndex === i ? 'Pause' : 'Vorlesen'}
                       >
                         {player.state === 'playing' && playingMessageIndex === i ? (
                           <>
@@ -595,7 +667,8 @@ export default function Widget() {
                         <button
                           type="button"
                           onClick={() => player.stop()}
-                          className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600"
+                          className="inline-flex items-center justify-center gap-1.5 min-h-[44px] min-w-[44px] px-3 py-2 text-xs text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors active:scale-95 focus:outline-none focus:ring-2 focus:ring-gray-400"
+                          aria-label="Stop"
                         >
                           <StopIcon /> Stop
                         </button>
@@ -604,136 +677,142 @@ export default function Widget() {
                   )}
 
                   {m.role === 'assistant' && uniqueSources(m.sources).length > 0 && (
-                    <div className="mt-2 flex justify-end">
-                      <div className="relative group">
+                    <div className="mt-2">
+                      <div className="relative inline-block">
                         <button
                           type="button"
                           onClick={() => setOpenSourcesFor((prev) => (prev === i ? null : i))}
-                          className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-[11px] font-medium text-gray-700 shadow-sm hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          aria-expanded={openSourcesFor === i}
+                          aria-controls={`sources-${i}`}
+                          className="inline-flex items-center gap-1 text-[11px] text-gray-400 hover:text-gray-600 transition-colors"
                         >
-                          Quellen
-                          <span className="rounded-full bg-white px-1.5 py-0.5 text-[10px] text-gray-600 ring-1 ring-gray-200">
-                            {uniqueSources(m.sources).length}
-                          </span>
+                          <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                          </svg>
+                          {uniqueSources(m.sources).length} Quellen
                         </button>
 
-                        <div
-                          className={`absolute bottom-full right-0 z-20 mb-2 w-[260px] rounded-xl border border-gray-200 bg-white p-2 shadow-lg ${
-                            openSourcesFor === i ? 'block' : 'hidden group-hover:block group-focus-within:block'
-                          }`}
-                        >
-                          <div className="px-1 pb-1 text-[11px] font-semibold text-gray-700">Quellen</div>
-                          <ul className="max-h-40 overflow-auto">
-                            {uniqueSources(m.sources).map((s) => (
-                              <li key={`${s.title}::${s.url}`} className="px-1 py-1">
-                                <a
-                                  href={s.url}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="block rounded-lg px-2 py-1.5 text-xs hover:bg-indigo-50"
-                                  title={s.url}
-                                  style={{
-                                    color: primaryColor,
-                                    backgroundColor: 'transparent',
-                                  }}
-                                >
-                                  <div className="font-medium text-gray-900 truncate">{s.title}</div>
-                                  <div className="text-[11px] text-gray-500 truncate">{s.url}</div>
-                                </a>
-                              </li>
-                            ))}
-                          </ul>
-                          <div className="px-1 pt-1 text-[10px] text-gray-400">Hover oder klicken zum Schließen.</div>
-                        </div>
+                        {openSourcesFor === i && (
+                          <div
+                            id={`sources-${i}`}
+                            role="menu"
+                            className="absolute left-0 bottom-full z-20 mb-2 w-64 rounded-lg border border-gray-100 bg-white p-2 shadow-lg"
+                          >
+                            <ul className="max-h-40 overflow-auto space-y-1" role="none">
+                              {uniqueSources(m.sources).map((s) => (
+                                <li key={`${s.title}::${s.url}`} role="none">
+                                  <a
+                                    href={s.url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    role="menuitem"
+                                    className="block rounded-md px-2 py-1.5 text-[11px] hover:bg-gray-50 focus:bg-gray-50 focus:outline-none transition-colors"
+                                  >
+                                    <div className="font-medium text-gray-700 truncate">{s.title}</div>
+                                    <div className="text-gray-400 truncate">{s.url}</div>
+                                  </a>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
+                  </div>
                 </div>
               </div>
             </div>
           ))}
 
           {sending && (
-            <div className="max-w-[86%] mr-auto">
-              <div className="flex gap-2 items-end">
-                <div className="h-7 w-7 rounded-full bg-white ring-1 ring-gray-200 shadow-sm flex items-center justify-center">
+            <div className="flex justify-start">
+              <div className="flex gap-2">
+                <div
+                  className="h-6 w-6 rounded-full flex items-center justify-center flex-shrink-0 mt-1"
+                  style={{ backgroundColor: `${primaryColor}15` }}
+                >
                   <AvatarIcon type={avatarType} color={primaryColor} />
                 </div>
-                <div className="rounded-2xl px-3 py-2 bg-white text-gray-900 ring-1 ring-gray-200 shadow-sm">
-                  <div className="flex items-center gap-1.5">
-                    <span className="h-2 w-2 rounded-full bg-gray-300 animate-bounce [animation-delay:-0.2s]" />
-                    <span className="h-2 w-2 rounded-full bg-gray-300 animate-bounce [animation-delay:-0.1s]" />
-                    <span className="h-2 w-2 rounded-full bg-gray-300 animate-bounce" />
+                <div className="rounded-2xl rounded-tl-sm px-4 py-3 bg-white shadow-sm">
+                  <div className="flex items-center gap-1" aria-label="Antwort wird geschrieben" role="status">
+                    {[0, 1, 2].map((i) => (
+                      <span
+                        key={i}
+                        className="h-1.5 w-1.5 rounded-full"
+                        style={{
+                          backgroundColor: primaryColor,
+                          opacity: 0.5,
+                          animation: `pulse 1.2s ease-in-out ${i * 0.15}s infinite`,
+                        }}
+                      />
+                    ))}
                   </div>
                 </div>
               </div>
             </div>
           )}
+          {/* Auto-scroll anchor */}
+          <div ref={messagesEndRef} />
         </main>
-        <form onSubmit={onSend} className="p-3 border-t bg-white/70 backdrop-blur">
-          {/* Voice mode toggle */}
-          <div className="flex items-center gap-2 mb-2">
+        {/* Input Area - Clean & Minimal */}
+        <form
+          onSubmit={onSend}
+          className="px-4 py-3 bg-white border-t border-gray-100"
+          style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}
+        >
+          <div className="flex items-center gap-2">
+            {/* Voice toggle */}
             <button
               type="button"
               onClick={() => {
                 if (voiceMode) {
-                  // Exiting voice mode - stop recording if active
-                  if (recorder.state === 'recording') {
-                    recorder.cancelRecording()
-                  }
+                  if (recorder.state === 'recording') recorder.cancelRecording()
                   player.stop()
                 }
                 setVoiceMode(!voiceMode)
               }}
-              className={`p-1.5 rounded-lg transition-colors ${
-                voiceMode ? 'bg-indigo-100 text-indigo-600' : 'text-gray-400 hover:text-gray-600'
+              className={`p-2 rounded-full transition-colors ${
+                voiceMode
+                  ? 'text-white'
+                  : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
               }`}
-              title={voiceMode ? 'Textmodus' : 'Sprachkonversation'}
+              style={voiceMode ? { backgroundColor: primaryColor } : undefined}
+              aria-label={voiceMode ? 'Zu Texteingabe wechseln' : 'Sprachkonversation starten'}
+              aria-pressed={voiceMode}
             >
-              {voiceMode ? <KeyboardIcon /> : <MicrophoneIcon />}
+              {voiceMode ? <KeyboardIcon className="h-5 w-5" /> : <MicrophoneIcon className="h-5 w-5" />}
             </button>
-            {voiceMode && (
-              <span className="text-xs text-indigo-600 font-medium">
-                Sprachkonversation aktiv
-              </span>
-            )}
-            {recorder.error && (
-              <span className="text-xs text-red-500">{recorder.error}</span>
-            )}
-          </div>
 
-          {/* Input area */}
-          <div className="flex gap-2">
             {voiceMode ? (
-              /* Voice conversation mode */
-              <div className="flex-1 flex items-center gap-2">
-                <div className="flex-1 h-12 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl overflow-hidden relative border border-indigo-100">
-                  {/* Audio level indicator */}
+              /* Voice Mode - Minimal */
+              <div className="flex-1 flex items-center">
+                <div className="flex-1 h-11 bg-gray-50 rounded-full overflow-hidden relative">
                   {recorder.state === 'recording' && (
                     <div
-                      className="absolute inset-y-0 left-0 bg-indigo-400/30 transition-all duration-75"
-                      style={{ width: `${recorder.audioLevel * 100}%` }}
+                      className="absolute inset-y-0 left-0 transition-all duration-75"
+                      style={{ width: `${recorder.audioLevel * 100}%`, backgroundColor: `${primaryColor}20` }}
                     />
                   )}
-                  <div className="absolute inset-0 flex items-center justify-center text-sm">
+                  <div className="absolute inset-0 flex items-center justify-center text-sm text-gray-500">
                     {sending ? (
-                      <span className="flex items-center gap-2 text-indigo-600">
-                        <span className="h-2 w-2 rounded-full bg-indigo-500 animate-pulse" />
+                      <span className="flex items-center gap-2">
+                        <span className="h-2 w-2 rounded-full animate-pulse" style={{ backgroundColor: primaryColor }} />
                         Verarbeite...
                       </span>
                     ) : player.state === 'playing' ? (
-                      <span className="flex items-center gap-2 text-purple-600">
-                        <span className="h-2 w-2 rounded-full bg-purple-500 animate-pulse" />
-                        KI spricht...
+                      <span className="flex items-center gap-2">
+                        <span className="h-2 w-2 rounded-full animate-pulse" style={{ backgroundColor: primaryColor }} />
+                        Spricht...
                       </span>
                     ) : recorder.state === 'recording' ? (
-                      <span className="flex items-center gap-2 text-indigo-600">
+                      <span className="flex items-center gap-2">
                         <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
-                        Ich höre zu...
+                        Höre zu...
                       </span>
                     ) : recorder.state === 'processing' ? (
-                      <span className="flex items-center gap-2 text-indigo-600">
-                        <span className="h-2 w-2 rounded-full bg-indigo-500 animate-pulse" />
+                      <span className="flex items-center gap-2">
+                        <span className="h-2 w-2 rounded-full animate-pulse" style={{ backgroundColor: primaryColor }} />
                         Verarbeite...
                       </span>
                     ) : (
@@ -741,52 +820,56 @@ export default function Widget() {
                         type="button"
                         onClick={recorder.startRecording}
                         disabled={!ready}
-                        className="flex items-center gap-2 text-indigo-600 hover:text-indigo-700"
+                        className="text-gray-400 hover:text-gray-600"
                       >
-                        <MicrophoneIcon />
-                        Tippen um zu sprechen
+                        Tippen zum Sprechen
                       </button>
                     )}
                   </div>
                 </div>
-                {/* Stop conversation button */}
                 {(recorder.state === 'recording' || player.state === 'playing') && (
                   <button
                     type="button"
                     onClick={() => {
                       recorder.cancelRecording()
                       player.stop()
-                      setVoiceMode(false) // Exit voice mode and return to text input
+                      setVoiceMode(false)
                     }}
-                    className="rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-600 hover:bg-red-100"
+                    className="ml-2 p-2 rounded-full text-red-500 hover:bg-red-50 transition-colors"
+                    aria-label="Stopp"
                   >
-                    Stopp
+                    <StopIcon className="h-5 w-5" />
                   </button>
                 )}
               </div>
             ) : (
-              /* Text input (existing) */
+              /* Text Mode - Minimal */
               <>
                 <input
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
-                  placeholder={ready ? 'Nachricht eingeben…' : 'Wird vorbereitet…'}
+                  placeholder={ready ? 'Nachricht...' : 'Verbindet...'}
                   disabled={!ready || sending}
-                  className="flex-1 rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100"
+                  aria-label="Nachricht eingeben"
+                  className="flex-1 h-11 rounded-full border-0 bg-gray-50 px-4 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-0 disabled:text-gray-400"
+                  style={{ '--tw-ring-color': `${primaryColor}40` } as CSSProperties}
                 />
                 <button
-                  disabled={!ready || sending}
-                  className="rounded-xl text-white px-4 py-2 text-sm font-medium shadow-sm disabled:opacity-60"
-                  style={{
-                    backgroundColor: primaryColor,
-                    opacity: !ready || sending ? 0.6 : 1,
-                  }}
+                  disabled={!ready || sending || !input.trim()}
+                  className="p-2.5 rounded-full text-white transition-all disabled:opacity-40"
+                  style={{ backgroundColor: primaryColor }}
+                  aria-label="Senden"
                 >
-                  {ready ? (sending ? 'Sende…' : 'Senden') : 'Bereite vor…'}
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14M12 5l7 7-7 7" />
+                  </svg>
                 </button>
               </>
             )}
           </div>
+          {recorder.error && (
+            <p className="mt-2 text-xs text-red-500 text-center">{recorder.error}</p>
+          )}
         </form>
       </div>
     </div>
