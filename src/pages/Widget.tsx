@@ -756,6 +756,7 @@ export default function Widget() {
                     onClick={() => {
                       recorder.cancelRecording()
                       player.stop()
+                      setVoiceMode(false) // Exit voice mode and return to text input
                     }}
                     className="rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-600 hover:bg-red-100"
                   >
