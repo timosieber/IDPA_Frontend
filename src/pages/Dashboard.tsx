@@ -1,4 +1,4 @@
-import { Bot, LogOut, Plus, MessageSquare, GraduationCap, Copy, Trash2, Globe, CheckCircle, Clock, XCircle, Zap, ArrowRight } from 'lucide-react'
+import { Bot, LogOut, Plus, MessageSquare, GraduationCap, Copy, Trash2, Globe, CheckCircle, Clock, XCircle, Zap, ArrowRight, Check } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -62,6 +62,7 @@ export default function Dashboard() {
   // Widget Vorschau
   const [widgetGreeting, setWidgetGreeting] = useState('Hallo! Wie können wir dir helfen?')
   const [widgetPreviewNonce, setWidgetPreviewNonce] = useState(0)
+  const [copied, setCopied] = useState(false)
 
   const isBotPreparing = (bot: Chatbot) => {
     const hasPendingSources = selectedBot?.id === bot.id && botSources.some((s) => s.status === 'PENDING')
@@ -622,14 +623,29 @@ export default function Dashboard() {
                     <div className="bg-dark-950 border border-white/10 rounded-xl overflow-hidden">
                       <div className="flex items-center justify-between px-4 py-2 bg-white/5 border-b border-white/5">
                         <span className="text-xs text-gray-400 font-mono">embed.js</span>
-                        <button 
+                        <button
                           onClick={() => {
                             navigator.clipboard.writeText(snippet)
-                            setSuccess('Code in Zwischenablage kopiert')
+                            setCopied(true)
+                            setTimeout(() => setCopied(false), 2000)
                           }}
-                          className="text-xs flex items-center gap-1 text-indigo-400 hover:text-indigo-300"
+                          className={`text-xs flex items-center gap-1.5 px-2 py-1 rounded-md transition-all duration-200 ${
+                            copied
+                              ? 'bg-green-500/20 text-green-400'
+                              : 'text-indigo-400 hover:text-indigo-300 hover:bg-white/5'
+                          }`}
                         >
-                          <Copy className="h-3 w-3" /> Kopieren
+                          {copied ? (
+                            <>
+                              <Check className="h-3 w-3" />
+                              <span>Kopiert!</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="h-3 w-3" />
+                              <span>Kopieren</span>
+                            </>
+                          )}
                         </button>
                       </div>
                       <div className="p-4 overflow-x-auto">
