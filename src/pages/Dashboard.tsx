@@ -592,33 +592,6 @@ export default function Dashboard() {
                   )}
 
                   <div>
-                    <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider mb-4">Datenquellen</h3>
-                    {loadingSources ? (
-                       <div className="space-y-3">
-                         {[1,2,3].map(i => <div key={i} className="h-10 bg-white/5 rounded-lg animate-pulse" />)}
-                       </div>
-                    ) : botSources.length === 0 ? (
-                      <div className="text-center py-8 border border-dashed border-white/10 rounded-xl">
-                        <p className="text-gray-500 text-sm">Keine Quellen definiert</p>
-                      </div>
-                    ) : (
-                      <ul className="space-y-2">
-                        {botSources.map((source) => (
-                          <li key={source.id} className="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/5">
-                             <div className="flex items-center gap-3 overflow-hidden">
-                                {source.status === 'READY' ? <CheckCircle className="h-4 w-4 text-green-400 flex-shrink-0" /> :
-                                 source.status === 'FAILED' ? <XCircle className="h-4 w-4 text-red-400 flex-shrink-0" /> :
-                                 <Clock className="h-4 w-4 text-yellow-400 flex-shrink-0" />}
-                                <span className="text-sm text-gray-200 truncate">{source.label}</span>
-                             </div>
-                             <span className="text-[10px] bg-white/5 px-2 py-1 rounded text-gray-500">{source.type}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-
-                  <div>
                     <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider mb-4">Integration</h3>
                     <div className="bg-dark-950 border border-white/10 rounded-xl overflow-hidden">
                       <div className="flex items-center justify-between px-4 py-2 bg-white/5 border-b border-white/5">
@@ -654,6 +627,33 @@ export default function Dashboard() {
                         </pre>
                       </div>
                     </div>
+                  </div>
+
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider mb-4">Datenquellen</h3>
+                    {loadingSources ? (
+                       <div className="space-y-3">
+                         {[1,2,3].map(i => <div key={i} className="h-10 bg-white/5 rounded-lg animate-pulse" />)}
+                       </div>
+                    ) : botSources.length === 0 ? (
+                      <div className="text-center py-8 border border-dashed border-white/10 rounded-xl">
+                        <p className="text-gray-500 text-sm">Keine Quellen definiert</p>
+                      </div>
+                    ) : (
+                      <ul className="space-y-2">
+                        {botSources.map((source) => (
+                          <li key={source.id} className="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/5">
+                             <div className="flex items-center gap-3 overflow-hidden">
+                                {source.status === 'READY' ? <CheckCircle className="h-4 w-4 text-green-400 flex-shrink-0" /> :
+                                 source.status === 'FAILED' ? <XCircle className="h-4 w-4 text-red-400 flex-shrink-0" /> :
+                                 <Clock className="h-4 w-4 text-yellow-400 flex-shrink-0" />}
+                                <span className="text-sm text-gray-200 truncate">{source.label}</span>
+                             </div>
+                             <span className="text-[10px] bg-white/5 px-2 py-1 rounded text-gray-500">{source.type}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </div>
                 </div>
               )}
