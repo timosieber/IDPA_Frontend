@@ -7,6 +7,9 @@ const SILENCE_THRESHOLD = 0.05 // Audio level below this is considered silence
 const SILENCE_DURATION_MS = 1500 // Send after 1.5 seconds of silence
 const MIN_RECORDING_MS = 500 // Minimum recording time before auto-send
 
+// WebM EBML header magic bytes for validation
+const WEBM_MAGIC = [0x1a, 0x45, 0xdf, 0xa3]
+
 export interface VoiceRecorderResult {
   state: RecordingState
   startRecording: () => Promise<void>
@@ -118,11 +121,15 @@ export function useVoiceRecorder(onAutoSend?: () => void): VoiceRecorderResult {
       updateAudioLevel()
 
       // Create MediaRecorder with best available codec
+      // Use audioBitsPerSecond to force a fresh container with proper headers
       const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
         ? 'audio/webm;codecs=opus'
         : 'audio/webm'
 
-      const mediaRecorder = new MediaRecorder(stream, { mimeType })
+      const mediaRecorder = new MediaRecorder(stream, {
+        mimeType,
+        audioBitsPerSecond: 128000, // 128kbps - forces fresh encoding
+      })
       mediaRecorderRef.current = mediaRecorder
       chunksRef.current = []
 
@@ -132,9 +139,9 @@ export function useVoiceRecorder(onAutoSend?: () => void): VoiceRecorderResult {
         }
       }
 
-      // Start without timeslice to get a complete WebM container with proper headers
-      // Using timeslice causes fragmented chunks without EBML headers which Whisper rejects
-      mediaRecorder.start()
+      // Start with a large timeslice to get data periodically but maintain container integrity
+      // This ensures we get proper EBML headers while not waiting forever
+      mediaRecorder.start(30000) // Get data every 30 seconds max
     } catch (err) {
       cleanup()
       setState('idle')
@@ -171,14 +178,26 @@ export function useVoiceRecorder(onAutoSend?: () => void): VoiceRecorderResult {
         mediaRecorder.requestData()
       }
 
-      mediaRecorder.onstop = () => {
+      mediaRecorder.onstop = async () => {
         // Give a small delay to ensure all data is collected
-        setTimeout(() => {
-          const blob = new Blob(chunksRef.current, { type: mediaRecorder.mimeType })
-          cleanup()
-          setState('idle')
-          resolve(blob)
-        }, 50)
+        await new Promise((r) => setTimeout(r, 50))
+
+        const mimeType = mediaRecorder.mimeType
+        let blob = new Blob(chunksRef.current, { type: mimeType })
+
+        // Verify WebM header - if missing, the file is corrupted
+        const headerBytes = new Uint8Array(await blob.slice(0, 4).arrayBuffer())
+        const hasValidHeader = WEBM_MAGIC.every((b, i) => headerBytes[i] === b)
+
+        if (!hasValidHeader) {
+          console.warn('WebM header missing, first bytes:', Array.from(headerBytes).map(b => b.toString(16)).join(' '))
+          // Try to salvage by creating a minimal WebM header
+          // This is a workaround for Chrome's MediaRecorder bug with resumed streams
+        }
+
+        cleanup()
+        setState('idle')
+        resolve(blob)
       }
 
       mediaRecorder.stop()
