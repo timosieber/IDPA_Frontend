@@ -58,6 +58,10 @@ export function useAudioPlayer(onPlaybackEnded?: () => void): AudioPlayerResult 
           audio.play().catch(() => {
             setError('Wiedergabe fehlgeschlagen')
             setState('idle')
+            // Still notify that playback "ended" so voice mode can continue
+            if (onPlaybackEndedRef.current) {
+              onPlaybackEndedRef.current()
+            }
           })
         }
 

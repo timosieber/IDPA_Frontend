@@ -401,26 +401,32 @@ export default function Widget() {
     }
   }, [autoSendTriggered, recorder.state])
 
-  // Continue listening after AI finishes speaking (voice conversation mode)
+  // Single unified effect for voice mode auto-recording
+  // This handles: initial activation, continue after AI response, and restart after any idle
   useEffect(() => {
-    if (continueListening && recorder.state === 'idle' && !sending && player.state === 'idle') {
-      setContinueListening(false)
-      // Small delay before starting to listen again
-      const timer = setTimeout(() => {
-        if (voiceMode && autoPlayResponse) {
-          recorder.startRecording()
-        }
-      }, 300)
-      return () => clearTimeout(timer)
-    }
-  }, [continueListening, recorder.state, sending, player.state, voiceMode, autoPlayResponse])
+    // Only proceed if voice mode is active and system is ready
+    if (!voiceMode || !ready || !autoPlayResponse) return
 
-  // Auto-start recording when voice mode is activated
-  useEffect(() => {
-    if (voiceMode && autoPlayResponse && ready && recorder.state === 'idle' && !sending && player.state === 'idle') {
-      recorder.startRecording()
+    // Don't start if already recording, sending, or playing audio
+    if (recorder.state !== 'idle' || sending || player.state !== 'idle') return
+
+    // Handle continueListening flag (set when AI finishes speaking)
+    if (continueListening) {
+      setContinueListening(false)
     }
-  }, [voiceMode])
+
+    // Start recording with a small delay to ensure clean state
+    const timer = setTimeout(() => {
+      // Double-check conditions before starting
+      if (voiceMode && recorder.state === 'idle' && !sending && player.state === 'idle') {
+        recorder.startRecording().catch((err) => {
+          console.error('Failed to start recording:', err)
+        })
+      }
+    }, 300)
+
+    return () => clearTimeout(timer)
+  }, [voiceMode, ready, autoPlayResponse, recorder.state, sending, player.state, continueListening])
 
   // Play a specific message as audio
   const playMessage = async (messageIndex: number, content: string) => {
@@ -449,25 +455,7 @@ export default function Widget() {
     }
   }, [player.state, playingMessageIndex])
 
-  // Auto-start recording when voice mode is enabled
-  useEffect(() => {
-    if (voiceMode && ready && recorder.state === 'idle' && !sending) {
-      recorder.startRecording()
-    }
-  }, [voiceMode, ready, recorder.state, sending])
-
-  // Auto-restart recording after sending a voice message (continuous conversation)
-  useEffect(() => {
-    if (voiceMode && ready && !sending && recorder.state === 'idle' && player.state === 'idle') {
-      // Small delay to allow response audio to finish
-      const timer = setTimeout(() => {
-        if (voiceMode && recorder.state === 'idle' && !sending) {
-          recorder.startRecording()
-        }
-      }, 500)
-      return () => clearTimeout(timer)
-    }
-  }, [voiceMode, ready, sending, recorder.state, player.state])
+  // Removed duplicate auto-start effects - unified in single effect above
 
   // Terms acceptance overlay
   if (!termsAccepted) {
