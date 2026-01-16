@@ -272,11 +272,13 @@ export async function sendVoiceMessage(params: {
   audioBlob: Blob
   synthesize?: boolean
 }): Promise<VoiceMessageResponse> {
-  const url = new URL(`${BACKEND_URL}/api/voice/message`)
-  url.searchParams.set('sessionId', params.sessionId)
-  url.searchParams.set('synthesize', String(params.synthesize ?? true))
+  const path = `${BACKEND_URL}/api/voice/message`
+  const searchParams = new URLSearchParams({
+    sessionId: params.sessionId,
+    synthesize: String(params.synthesize ?? true),
+  })
 
-  const res = await fetch(url.toString(), {
+  const res = await fetch(`${path}?${searchParams.toString()}`, {
     method: 'POST',
     headers: {
       'Content-Type': params.audioBlob.type,
@@ -300,10 +302,10 @@ export async function synthesizeSpeech(params: {
   text: string
   voice?: 'alloy' | 'echo' | 'fable' | 'onyx' | 'nova' | 'shimmer'
 }): Promise<Blob> {
-  const url = new URL(`${BACKEND_URL}/api/voice/synthesize`)
-  url.searchParams.set('sessionId', params.sessionId)
+  const path = `${BACKEND_URL}/api/voice/synthesize`
+  const searchParams = new URLSearchParams({ sessionId: params.sessionId })
 
-  const res = await fetch(url.toString(), {
+  const res = await fetch(`${path}?${searchParams.toString()}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
