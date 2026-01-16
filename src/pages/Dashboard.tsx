@@ -670,6 +670,7 @@ export default function Dashboard() {
                       src={widgetPreviewUrl}
                       title="Widget Preview"
                       className="w-full h-full"
+                      allow="microphone"
                     />
                   </div>
                 </div>

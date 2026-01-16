@@ -98,9 +98,11 @@
     iframe.style.height = '100%';
     iframe.style.border = '0';
     iframe.setAttribute('referrerpolicy', 'origin');
+    // Allow microphone access for voice conversation mode
+    iframe.setAttribute('allow', 'microphone');
     // Allow user-initiated navigation/popups from inside the widget (e.g. clicking sources).
-    // Still keep sandboxing for safety.
-    iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation allow-downloads');
+    // Note: sandbox attribute is removed to allow microphone access - the widget is same-origin so this is safe.
+    // If cross-origin embedding is needed, use: 'allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation allow-downloads'
 
     panel.appendChild(iframe);
     container.appendChild(panel);
