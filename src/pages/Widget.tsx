@@ -221,7 +221,8 @@ export default function Widget() {
   const [voiceMode, setVoiceMode] = useState(false)
   const [autoPlayResponse, setAutoPlayResponse] = useState(true)
   const [playingMessageIndex, setPlayingMessageIndex] = useState<number | null>(null)
-  const recorder = useVoiceRecorder()
+  const [autoSendTriggered, setAutoSendTriggered] = useState(false)
+  const recorder = useVoiceRecorder(() => setAutoSendTriggered(true))
   const player = useAudioPlayer()
 
   const [termsAccepted, setTermsAccepted] = useState<boolean>(() => {
@@ -385,6 +386,14 @@ export default function Widget() {
       setSending(false)
     }
   }
+
+  // Auto-send when silence is detected
+  useEffect(() => {
+    if (autoSendTriggered && recorder.state === 'recording') {
+      setAutoSendTriggered(false)
+      onVoiceSend()
+    }
+  }, [autoSendTriggered, recorder.state])
 
   // Play a specific message as audio
   const playMessage = async (messageIndex: number, content: string) => {
