@@ -217,13 +217,19 @@ export default function Widget() {
   const [sending, setSending] = useState(false)
   const [openSourcesFor, setOpenSourcesFor] = useState<number | null>(null)
 
-  // Voice mode state
+  // Voice conversation mode state
   const [voiceMode, setVoiceMode] = useState(false)
-  const [autoPlayResponse, setAutoPlayResponse] = useState(true)
+  const [autoPlayResponse] = useState(true) // Always true for conversation mode
   const [playingMessageIndex, setPlayingMessageIndex] = useState<number | null>(null)
   const [autoSendTriggered, setAutoSendTriggered] = useState(false)
+  const [continueListening, setContinueListening] = useState(false)
   const recorder = useVoiceRecorder(() => setAutoSendTriggered(true))
-  const player = useAudioPlayer()
+  const player = useAudioPlayer(() => {
+    // When audio playback ends in voice mode, automatically start listening again
+    if (voiceMode && autoPlayResponse) {
+      setContinueListening(true)
+    }
+  })
 
   const [termsAccepted, setTermsAccepted] = useState<boolean>(() => {
     try {
@@ -394,6 +400,27 @@ export default function Widget() {
       onVoiceSend()
     }
   }, [autoSendTriggered, recorder.state])
+
+  // Continue listening after AI finishes speaking (voice conversation mode)
+  useEffect(() => {
+    if (continueListening && recorder.state === 'idle' && !sending && player.state === 'idle') {
+      setContinueListening(false)
+      // Small delay before starting to listen again
+      const timer = setTimeout(() => {
+        if (voiceMode && autoPlayResponse) {
+          recorder.startRecording()
+        }
+      }, 300)
+      return () => clearTimeout(timer)
+    }
+  }, [continueListening, recorder.state, sending, player.state, voiceMode, autoPlayResponse])
+
+  // Auto-start recording when voice mode is activated
+  useEffect(() => {
+    if (voiceMode && autoPlayResponse && ready && recorder.state === 'idle' && !sending && player.state === 'idle') {
+      recorder.startRecording()
+    }
+  }, [voiceMode])
 
   // Play a specific message as audio
   const playMessage = async (messageIndex: number, content: string) => {
@@ -660,24 +687,27 @@ export default function Widget() {
           <div className="flex items-center gap-2 mb-2">
             <button
               type="button"
-              onClick={() => setVoiceMode(!voiceMode)}
+              onClick={() => {
+                if (voiceMode) {
+                  // Exiting voice mode - stop recording if active
+                  if (recorder.state === 'recording') {
+                    recorder.cancelRecording()
+                  }
+                  player.stop()
+                }
+                setVoiceMode(!voiceMode)
+              }}
               className={`p-1.5 rounded-lg transition-colors ${
                 voiceMode ? 'bg-indigo-100 text-indigo-600' : 'text-gray-400 hover:text-gray-600'
               }`}
-              title={voiceMode ? 'Textmodus' : 'Sprachmodus'}
+              title={voiceMode ? 'Textmodus' : 'Sprachkonversation'}
             >
               {voiceMode ? <KeyboardIcon /> : <MicrophoneIcon />}
             </button>
             {voiceMode && (
-              <label className="flex items-center gap-1.5 text-xs text-gray-500">
-                <input
-                  type="checkbox"
-                  checked={autoPlayResponse}
-                  onChange={(e) => setAutoPlayResponse(e.target.checked)}
-                  className="rounded border-gray-300"
-                />
-                Antwort vorlesen
-              </label>
+              <span className="text-xs text-indigo-600 font-medium">
+                Sprachkonversation aktiv
+              </span>
             )}
             {recorder.error && (
               <span className="text-xs text-red-500">{recorder.error}</span>
@@ -687,54 +717,64 @@ export default function Widget() {
           {/* Input area */}
           <div className="flex gap-2">
             {voiceMode ? (
-              /* Voice input */
-              recorder.state === 'idle' ? (
-                <button
-                  type="button"
-                  onClick={recorder.startRecording}
-                  disabled={!ready || sending}
-                  className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm shadow-sm hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  <MicrophoneIcon className="text-gray-500" />
-                  <span className="text-gray-600">Zum Sprechen klicken</span>
-                </button>
-              ) : (
-                <div className="flex-1 flex items-center gap-2">
+              /* Voice conversation mode */
+              <div className="flex-1 flex items-center gap-2">
+                <div className="flex-1 h-12 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl overflow-hidden relative border border-indigo-100">
                   {/* Audio level indicator */}
-                  <div className="flex-1 h-10 bg-gray-100 rounded-xl overflow-hidden relative">
+                  {recorder.state === 'recording' && (
                     <div
-                      className="absolute inset-y-0 left-0 bg-indigo-500 transition-all duration-75"
+                      className="absolute inset-y-0 left-0 bg-indigo-400/30 transition-all duration-75"
                       style={{ width: `${recorder.audioLevel * 100}%` }}
                     />
-                    <div className="absolute inset-0 flex items-center justify-center text-sm text-gray-600">
-                      {recorder.state === 'recording' ? (
-                        <span className="flex items-center gap-2">
-                          <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
-                          Aufnahme läuft...
-                        </span>
-                      ) : (
-                        'Verarbeite...'
-                      )}
-                    </div>
+                  )}
+                  <div className="absolute inset-0 flex items-center justify-center text-sm">
+                    {sending ? (
+                      <span className="flex items-center gap-2 text-indigo-600">
+                        <span className="h-2 w-2 rounded-full bg-indigo-500 animate-pulse" />
+                        Verarbeite...
+                      </span>
+                    ) : player.state === 'playing' ? (
+                      <span className="flex items-center gap-2 text-purple-600">
+                        <span className="h-2 w-2 rounded-full bg-purple-500 animate-pulse" />
+                        KI spricht...
+                      </span>
+                    ) : recorder.state === 'recording' ? (
+                      <span className="flex items-center gap-2 text-indigo-600">
+                        <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
+                        Ich höre zu...
+                      </span>
+                    ) : recorder.state === 'processing' ? (
+                      <span className="flex items-center gap-2 text-indigo-600">
+                        <span className="h-2 w-2 rounded-full bg-indigo-500 animate-pulse" />
+                        Verarbeite...
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={recorder.startRecording}
+                        disabled={!ready}
+                        className="flex items-center gap-2 text-indigo-600 hover:text-indigo-700"
+                      >
+                        <MicrophoneIcon />
+                        Tippen um zu sprechen
+                      </button>
+                    )}
                   </div>
-                  <button
-                    type="button"
-                    onClick={onVoiceSend}
-                    disabled={recorder.state === 'processing' || sending}
-                    className="rounded-xl text-white px-4 py-2.5 text-sm font-medium shadow-sm disabled:opacity-60"
-                    style={{ backgroundColor: primaryColor }}
-                  >
-                    Senden
-                  </button>
-                  <button
-                    type="button"
-                    onClick={recorder.cancelRecording}
-                    className="rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-600 hover:bg-gray-50"
-                  >
-                    Abbrechen
-                  </button>
                 </div>
-              )
+                {/* Stop conversation button */}
+                {(recorder.state === 'recording' || player.state === 'playing') && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      recorder.cancelRecording()
+                      player.stop()
+                    }}
+                    className="rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-600 hover:bg-red-100"
+                  >
+                    Stopp
+                  </button>
+                )}
+              </div>
             ) : (
               /* Text input (existing) */
               <>

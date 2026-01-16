@@ -13,7 +13,9 @@ export interface AudioPlayerResult {
   error: string | null
 }
 
-export function useAudioPlayer(): AudioPlayerResult {
+export function useAudioPlayer(onPlaybackEnded?: () => void): AudioPlayerResult {
+  const onPlaybackEndedRef = useRef(onPlaybackEnded)
+  onPlaybackEndedRef.current = onPlaybackEnded
   const [state, setState] = useState<PlaybackState>('idle')
   const [progress, setProgress] = useState(0)
   const [error, setError] = useState<string | null>(null)
@@ -68,6 +70,10 @@ export function useAudioPlayer(): AudioPlayerResult {
         audio.onended = () => {
           setState('idle')
           setProgress(1)
+          // Notify when playback ends (for voice conversation mode)
+          if (onPlaybackEndedRef.current) {
+            onPlaybackEndedRef.current()
+          }
         }
 
         audio.onerror = () => {
