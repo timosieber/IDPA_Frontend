@@ -164,11 +164,19 @@ export function useVoiceRecorder(onAutoSend?: () => void): VoiceRecorderResult {
 
       setState('processing')
 
+      // Request any remaining data before stopping
+      if (mediaRecorder.state === 'recording') {
+        mediaRecorder.requestData()
+      }
+
       mediaRecorder.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: mediaRecorder.mimeType })
-        cleanup()
-        setState('idle')
-        resolve(blob)
+        // Give a small delay to ensure all data is collected
+        setTimeout(() => {
+          const blob = new Blob(chunksRef.current, { type: mediaRecorder.mimeType })
+          cleanup()
+          setState('idle')
+          resolve(blob)
+        }, 50)
       }
 
       mediaRecorder.stop()
