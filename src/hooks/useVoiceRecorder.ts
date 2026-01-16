@@ -132,7 +132,9 @@ export function useVoiceRecorder(onAutoSend?: () => void): VoiceRecorderResult {
         }
       }
 
-      mediaRecorder.start(100) // Collect data every 100ms
+      // Start without timeslice to get a complete WebM container with proper headers
+      // Using timeslice causes fragmented chunks without EBML headers which Whisper rejects
+      mediaRecorder.start()
     } catch (err) {
       cleanup()
       setState('idle')
