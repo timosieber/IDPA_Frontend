@@ -3,16 +3,19 @@ import type { ReactNode } from 'react'
 import type { Models } from 'appwrite'
 import { ID, OAuthProvider } from 'appwrite'
 import { account } from '../lib/appwrite'
+import { getUserInfo, type UserStatus } from '../lib/api'
 
 type AppwriteUser = Models.User<Models.Preferences>
 
 interface AuthContextType {
   user: AppwriteUser | null
+  userStatus: UserStatus | null
   loading: boolean
   signInWithGoogle: () => Promise<AuthResult>
   signInWithEmail: (email: string, password: string) => Promise<AuthResult>
   signUpWithEmail: (email: string, password: string) => Promise<AuthResult>
   signOut: () => Promise<void>
+  refreshUserStatus: () => Promise<void>
 }
 
 type AuthResult = { error: string | null }
@@ -21,13 +24,29 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AppwriteUser | null>(null)
+  const [userStatus, setUserStatus] = useState<UserStatus | null>(null)
   const [loading, setLoading] = useState(true)
+
+  const fetchUserStatus = async () => {
+    try {
+      const info = await getUserInfo()
+      setUserStatus(info.status)
+    } catch {
+      setUserStatus(null)
+    }
+  }
 
   useEffect(() => {
     account
       .get()
-      .then((currentUser) => setUser(currentUser))
-      .catch(() => setUser(null))
+      .then(async (currentUser) => {
+        setUser(currentUser)
+        await fetchUserStatus()
+      })
+      .catch(() => {
+        setUser(null)
+        setUserStatus(null)
+      })
       .finally(() => setLoading(false))
   }, [])
 
@@ -45,6 +64,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await account.createEmailPasswordSession(email, password)
       const currentUser = await account.get()
       setUser(currentUser)
+      await fetchUserStatus()
       return { error: null }
     } catch (error) {
       return { error: getErrorMessage(error) }
@@ -57,6 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await account.createEmailPasswordSession(email, password)
       const currentUser = await account.get()
       setUser(currentUser)
+      await fetchUserStatus()
       return { error: null }
     } catch (error) {
       return { error: getErrorMessage(error) }
@@ -66,15 +87,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = async () => {
     await account.deleteSession('current')
     setUser(null)
+    setUserStatus(null)
+  }
+
+  const refreshUserStatus = async () => {
+    await fetchUserStatus()
   }
 
   const value: AuthContextType = {
     user,
+    userStatus,
     loading,
     signInWithGoogle,
     signInWithEmail,
     signUpWithEmail,
     signOut,
+    refreshUserStatus,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

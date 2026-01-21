@@ -33,6 +33,24 @@ async function getValidToken(): Promise<string> {
   return activeTokenRequest
 }
 
+export type UserStatus = 'WAITLIST' | 'APPROVED'
+
+export interface UserInfo {
+  id: string
+  email: string
+  status: UserStatus
+  createdAt: string
+}
+
+export async function getUserInfo(): Promise<UserInfo> {
+  const res = await fetch(`${BACKEND_URL}/api/user/me`, {
+    headers: await authHeaders(),
+    credentials: 'include',
+  })
+  if (!res.ok) throw new Error(`Fehler beim Laden der Benutzerinformationen (${res.status})`)
+  return res.json()
+}
+
 export interface Chatbot {
   id: string
   userId: string
