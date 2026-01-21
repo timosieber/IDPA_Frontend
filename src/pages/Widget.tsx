@@ -620,7 +620,7 @@ export default function Widget() {
           {error && <div className="text-sm text-red-500 text-center py-2">{error}</div>}
           {messages.map((m, i) => (
             <div key={i} className={`${m.role === 'user' ? 'flex justify-end' : 'flex justify-start'}`}>
-              <div className={`max-w-[85%] ${m.role === 'user' ? '' : 'flex gap-2'}`}>
+              <div className={`max-w-[85%] min-w-0 ${m.role === 'user' ? '' : 'flex gap-2'}`}>
                 {m.role === 'assistant' && (
                   <div
                     className="h-6 w-6 rounded-full flex items-center justify-center flex-shrink-0 mt-1"
@@ -629,16 +629,16 @@ export default function Widget() {
                     <AvatarIcon type={avatarType} color={primaryColor} />
                   </div>
                 )}
-                <div>
+                <div className="min-w-0 flex-1">
                   <div
-                    className={`rounded-2xl px-4 py-2.5 ${
+                    className={`rounded-2xl px-4 py-2.5 min-w-0 overflow-hidden ${
                       m.role === 'user'
                         ? 'rounded-tr-sm text-white'
                         : 'rounded-tl-sm bg-white text-gray-800 shadow-sm'
                     }`}
                     style={m.role === 'user' ? { backgroundColor: primaryColor } : undefined}
                   >
-                    <p className="whitespace-pre-wrap text-[14px] leading-relaxed">
+                    <p className="whitespace-pre-wrap break-words text-[14px] leading-relaxed">
                       {renderContentWithLinks(m.content, m.role === 'user' ? '#FFFFFF' : primaryColor)}
                     </p>
 
