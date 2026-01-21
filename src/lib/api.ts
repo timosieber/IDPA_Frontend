@@ -178,8 +178,9 @@ export async function sendMessage(params: {
   const raw = (await res.json()) as { sessionId: string | null; rag: RagResponse }
 
   // Transform RAG response to the expected SendMessageResponse format
+  // For unknown responses, use claims if available (natural off-topic responses), otherwise fallback to reason
   const answer = raw.rag.unknown
-    ? raw.rag.reason || 'Das kann ich leider nicht beantworten.'
+    ? (raw.rag.claims.length > 0 ? raw.rag.claims.map((c) => c.text).join('\n\n') : raw.rag.reason || 'Das kann ich leider nicht beantworten.')
     : raw.rag.claims.map((c) => c.text).join('\n\n')
 
   const sources: ChatSource[] = raw.rag.sources.map((s) => ({
