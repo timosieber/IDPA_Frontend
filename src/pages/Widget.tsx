@@ -217,6 +217,7 @@ export default function Widget() {
   const [sending, setSending] = useState(false)
   const [openSourcesFor, setOpenSourcesFor] = useState<number | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
 
   // Voice conversation mode state
   const [voiceMode, setVoiceMode] = useState(false)
@@ -340,6 +341,8 @@ export default function Widget() {
       setError(e instanceof Error ? e.message : 'Fehler beim Senden')
     } finally {
       setSending(false)
+      // Re-focus the input field after response
+      setTimeout(() => inputRef.current?.focus(), 50)
     }
   }
 
@@ -846,6 +849,7 @@ export default function Widget() {
               /* Text Mode - Minimal */
               <>
                 <input
+                  ref={inputRef}
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   placeholder={ready ? 'Nachricht...' : 'Verbindet...'}
