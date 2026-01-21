@@ -217,7 +217,7 @@ export default function Widget() {
   const [sending, setSending] = useState(false)
   const [openSourcesFor, setOpenSourcesFor] = useState<number | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const inputRef = useRef<HTMLInputElement>(null)
+  const inputRef = useRef<HTMLTextAreaElement>(null)
 
   // Voice conversation mode state
   const [voiceMode, setVoiceMode] = useState(false)
@@ -341,8 +341,13 @@ export default function Widget() {
       setError(e instanceof Error ? e.message : 'Fehler beim Senden')
     } finally {
       setSending(false)
-      // Re-focus the input field after response
-      setTimeout(() => inputRef.current?.focus(), 50)
+      // Re-focus the input field after response and reset height
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.style.height = 'auto'
+          inputRef.current.focus()
+        }
+      }, 50)
     }
   }
 
@@ -848,19 +853,34 @@ export default function Widget() {
             ) : (
               /* Text Mode - Minimal */
               <>
-                <input
+                <textarea
                   ref={inputRef}
                   value={input}
-                  onChange={(e) => setInput(e.target.value)}
+                  onChange={(e) => {
+                    setInput(e.target.value)
+                    // Auto-resize textarea
+                    e.target.style.height = 'auto'
+                    e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`
+                  }}
+                  onKeyDown={(e) => {
+                    // Submit on Enter (without Shift)
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault()
+                      if (input.trim() && ready && !sending) {
+                        onSend(e as unknown as React.FormEvent)
+                      }
+                    }
+                  }}
                   placeholder={ready ? 'Nachricht...' : 'Verbindet...'}
                   disabled={!ready || sending}
                   aria-label="Nachricht eingeben"
-                  className="flex-1 h-11 rounded-full border-0 bg-gray-50 px-4 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-0 disabled:text-gray-400"
+                  rows={1}
+                  className="flex-1 min-h-[44px] max-h-[120px] rounded-2xl border-0 bg-gray-50 px-4 py-3 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-0 disabled:text-gray-400 resize-none overflow-y-auto"
                   style={{ '--tw-ring-color': `${primaryColor}40` } as CSSProperties}
                 />
                 <button
                   disabled={!ready || sending || !input.trim()}
-                  className="p-2.5 rounded-full text-white transition-all disabled:opacity-40"
+                  className="p-2.5 rounded-full text-white transition-all disabled:opacity-40 self-end mb-0.5"
                   style={{ backgroundColor: primaryColor }}
                   aria-label="Senden"
                 >
