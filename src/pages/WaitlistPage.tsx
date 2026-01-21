@@ -1,4 +1,4 @@
-import { Clock, LogOut, Mail, CheckCircle } from 'lucide-react'
+import { Bot, Clock, LogOut, Mail, CheckCircle } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { motion } from 'framer-motion'
@@ -24,12 +24,10 @@ export default function WaitlistPage() {
       <header className="fixed top-0 w-full z-50 border-b border-white/5 bg-dark-950/90 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-cyan-400 flex items-center justify-center">
-              <Clock className="w-5 h-5 text-white" />
+            <div className="p-2 bg-white/5 rounded-lg border border-white/10">
+              <Bot className="h-5 w-5 text-white" />
             </div>
-            <span className="text-xl font-semibold bg-gradient-to-r from-white to-white/60 bg-clip-text text-transparent">
-              IDPA ChatBot
-            </span>
+            <span className="text-lg font-semibold tracking-tight">ChatBot Studio</span>
           </div>
           <div className="flex items-center gap-4">
             <span className="text-sm text-dark-300">{user?.email}</span>
@@ -112,8 +110,8 @@ export default function WaitlistPage() {
         <div className="max-w-7xl mx-auto px-6 text-center">
           <p className="text-sm text-dark-400">
             Bei Fragen kontaktieren Sie uns unter{' '}
-            <a href="mailto:support@example.com" className="text-indigo-400 hover:text-indigo-300 transition-colors">
-              support@example.com
+            <a href="mailto:info@trendingmedia.ch" className="text-indigo-400 hover:text-indigo-300 transition-colors">
+              info@trendingmedia.ch
             </a>
           </p>
         </div>
