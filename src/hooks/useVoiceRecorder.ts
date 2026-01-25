@@ -7,8 +7,9 @@ const SILENCE_THRESHOLD = 0.05 // Audio level below this is considered silence
 const SILENCE_DURATION_MS = 1500 // Send after 1.5 seconds of silence
 const MIN_RECORDING_MS = 500 // Minimum recording time before auto-send
 
-// WebM EBML header magic bytes for validation
-const WEBM_MAGIC = [0x1a, 0x45, 0xdf, 0xa3]
+// Audio format magic bytes for validation
+const WEBM_MAGIC = [0x1a, 0x45, 0xdf, 0xa3] // WebM/EBML header
+const MP4_FTYP_MAGIC = [0x66, 0x74, 0x79, 0x70] // "ftyp" at offset 4 for MP4/M4A
 
 export interface VoiceRecorderResult {
   state: RecordingState
@@ -204,16 +205,16 @@ export function useVoiceRecorder(onAutoSend?: () => void): VoiceRecorderResult {
         await new Promise((r) => setTimeout(r, 50))
 
         const mimeType = mediaRecorder.mimeType
-        let blob = new Blob(chunksRef.current, { type: mimeType })
+        const blob = new Blob(chunksRef.current, { type: mimeType })
 
-        // Verify WebM header - if missing, the file is corrupted
-        const headerBytes = new Uint8Array(await blob.slice(0, 4).arrayBuffer())
-        const hasValidHeader = WEBM_MAGIC.every((b, i) => headerBytes[i] === b)
+        // Validate audio format based on actual content
+        const headerBytes = new Uint8Array(await blob.slice(0, 8).arrayBuffer())
+        const isWebM = WEBM_MAGIC.every((b, i) => headerBytes[i] === b)
+        const isMP4 = MP4_FTYP_MAGIC.every((b, i) => headerBytes[i + 4] === b) // ftyp at offset 4
 
-        if (!hasValidHeader) {
-          console.warn('WebM header missing, first bytes:', Array.from(headerBytes).map(b => b.toString(16)).join(' '))
-          // Try to salvage by creating a minimal WebM header
-          // This is a workaround for Chrome's MediaRecorder bug with resumed streams
+        if (!isWebM && !isMP4 && blob.size > 0) {
+          // Log for debugging but don't treat as error - browser may use other formats
+          console.debug('Audio format:', mimeType, 'header bytes:', Array.from(headerBytes).map(b => b.toString(16)).join(' '))
         }
 
         cleanup()
