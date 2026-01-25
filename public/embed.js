@@ -1,10 +1,17 @@
 (function () {
   try {
+    // Prevent double initialization
+    if (window.__chatbotWidgetLoaded) return;
+    window.__chatbotWidgetLoaded = true;
+
     var cfg = (window.ChatBotConfig = window.ChatBotConfig || {});
     if (!cfg.chatbotId) {
       console.error('[ChatBot] Missing chatbotId in window.ChatBotConfig');
       return;
     }
+
+    // Don't load widget on the widget page itself
+    if (window.location.pathname === '/widget') return;
 
     // Determine base URL (where widget is hosted)
     var currentScript = document.currentScript || (function () {
