@@ -208,7 +208,7 @@ export function useVoiceRecorder(onAutoSend?: () => void): VoiceRecorderResult {
       updateAudioLevel()
 
       // Determine best supported MIME type for the platform
-      // Safari reports webm as supported but produces empty data - always use mp4 on Safari
+      // Safari reports webm as supported but produces empty data
       const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent) ||
                        /iPad|iPhone|iPod/.test(navigator.userAgent)
 
@@ -219,14 +219,17 @@ export function useVoiceRecorder(onAutoSend?: () => void): VoiceRecorderResult {
       console.log('[VoiceRecorder] audio/mp4:', MediaRecorder.isTypeSupported('audio/mp4'))
       console.log('[VoiceRecorder] audio/aac:', MediaRecorder.isTypeSupported('audio/aac'))
 
+      // On Safari, don't specify mimeType at all - let browser choose its native format
+      // Safari's MediaRecorder works best with default settings
       let mimeType = ''
+      let timeslice = 1000 // Default: get data every second
 
       if (isSafari) {
-        // Safari: prefer mp4, it's the only format that actually works
-        if (MediaRecorder.isTypeSupported('audio/mp4')) {
-          mimeType = 'audio/mp4'
-        }
-        // If mp4 not supported, let browser choose default
+        // Safari: don't specify mimeType, let it use its native format
+        // Also use smaller timeslice to ensure data is captured
+        mimeType = ''
+        timeslice = 500 // Get data more frequently on Safari
+        console.log('[VoiceRecorder] Safari detected - using browser default format')
       } else {
         // Non-Safari: prefer webm/opus
         if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
@@ -238,13 +241,15 @@ export function useVoiceRecorder(onAutoSend?: () => void): VoiceRecorderResult {
         }
       }
 
-      console.log('[VoiceRecorder] Selected MIME type:', mimeType || '(browser default)')
+      console.log('[VoiceRecorder] Selected MIME type:', mimeType || '(browser default)', 'timeslice:', timeslice)
 
-      const recorderOptions: MediaRecorderOptions = {
-        audioBitsPerSecond: 128000, // 128kbps - forces fresh encoding
-      }
+      const recorderOptions: MediaRecorderOptions = {}
       if (mimeType) {
         recorderOptions.mimeType = mimeType
+      }
+      // Don't set audioBitsPerSecond on Safari - it can cause issues
+      if (!isSafari) {
+        recorderOptions.audioBitsPerSecond = 128000
       }
 
       const mediaRecorder = new MediaRecorder(stream, recorderOptions)
@@ -253,15 +258,18 @@ export function useVoiceRecorder(onAutoSend?: () => void): VoiceRecorderResult {
       console.log('[VoiceRecorder] MediaRecorder created, actual mimeType:', mediaRecorder.mimeType)
 
       mediaRecorder.ondataavailable = (event) => {
-        console.log('[VoiceRecorder] Data available, size:', event.data.size)
+        console.log('[VoiceRecorder] Data available, size:', event.data.size, 'type:', event.data.type)
         if (event.data.size > 0) {
           chunksRef.current.push(event.data)
         }
       }
 
-      // Start with a large timeslice to get data periodically but maintain container integrity
-      // This ensures we get proper EBML headers while not waiting forever
-      mediaRecorder.start(30000) // Get data every 30 seconds max
+      mediaRecorder.onerror = (event) => {
+        console.error('[VoiceRecorder] MediaRecorder error:', event)
+      }
+
+      // Use smaller timeslice to get data more frequently
+      mediaRecorder.start(timeslice)
       console.log('[VoiceRecorder] MediaRecorder started, state:', mediaRecorder.state)
     } catch (err) {
       console.error('[VoiceRecorder] Error starting recording:', err)

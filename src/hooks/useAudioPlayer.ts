@@ -16,7 +16,6 @@ export interface AudioPlayerResult {
 
 // Shared audio context for iOS unlock
 let audioUnlocked = false
-let sharedAudioElement: HTMLAudioElement | null = null
 
 // Unlock audio playback on iOS - must be called from a user gesture
 export async function unlockIOSAudio(): Promise<void> {
@@ -28,26 +27,47 @@ export async function unlockIOSAudio(): Promise<void> {
   console.log('[AudioPlayer] Attempting to unlock iOS audio...')
 
   try {
-    // Create a shared audio element if it doesn't exist
-    if (!sharedAudioElement) {
-      sharedAudioElement = new Audio()
-      sharedAudioElement.setAttribute('playsinline', 'true')
-      sharedAudioElement.setAttribute('webkit-playsinline', 'true')
+    // Method 1: Use AudioContext with a silent oscillator
+    const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
+    const ctx = new AudioContextClass()
+
+    // Create a silent oscillator and play it briefly
+    const oscillator = ctx.createOscillator()
+    const gainNode = ctx.createGain()
+    gainNode.gain.value = 0 // Silent
+    oscillator.connect(gainNode)
+    gainNode.connect(ctx.destination)
+    oscillator.start(0)
+    oscillator.stop(ctx.currentTime + 0.001) // Stop after 1ms
+
+    // Resume if suspended
+    if (ctx.state === 'suspended') {
+      await ctx.resume()
     }
 
-    // Play a tiny silent audio to unlock
-    // This is a minimal valid MP3 file (silence)
-    const silentMp3 = 'data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAABhgC7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAAYYoRwmHAAAAAAD/+1DEAAAGAAGn9AAAIiXGq/zRABP/yD/+Tv/5O//yn/+hH/60f/oiGP2TD/9EP/0NDQ0NDQ0NDb//6Ghv/Q0ND/9CH/0Pt//9Df//b////+hv/6H////2P//////+3///9v////////+7////d/////+7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7v/7UMQeAPAAADSAAAAAgAADSAAAAEu7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7'
+    // Method 2: Also try with Audio element as backup
+    const audio = new Audio()
+    audio.setAttribute('playsinline', 'true')
+    audio.setAttribute('webkit-playsinline', 'true')
+    // Create a tiny valid WAV file (silence, 1 sample)
+    const silentWav = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA='
+    audio.src = silentWav
+    audio.volume = 0
 
-    sharedAudioElement.src = silentMp3
-    await sharedAudioElement.play()
-    sharedAudioElement.pause()
-    sharedAudioElement.currentTime = 0
+    try {
+      await audio.play()
+      audio.pause()
+    } catch {
+      // Ignore errors from Audio element method
+      console.log('[AudioPlayer] Audio element method failed, but AudioContext may have worked')
+    }
 
     audioUnlocked = true
     console.log('[AudioPlayer] iOS audio unlocked successfully')
   } catch (e) {
     console.warn('[AudioPlayer] Failed to unlock iOS audio:', e)
+    // Still mark as attempted to avoid retry spam
+    audioUnlocked = true
   }
 }
 
