@@ -344,243 +344,80 @@ export default function LandingPage() {
           <div className="text-center mb-16">
             <h2 className="text-3xl font-bold mb-4">Preisgestaltung</h2>
             <p className="text-gray-400 max-w-2xl mx-auto">
-              Drei Modelle, klar abgegrenzt. Alle Preise verstehen sich exkl. MwSt.
+              Ein Produkt, klare Kosten. Alle Preise inkl. MwSt.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Basic Chatbot */}
-            <div className="glass-panel rounded-2xl p-8 border border-white/10 flex flex-col">
-              <div className="mb-6">
-                <h3 className="text-xl font-bold text-white mb-2">Basic</h3>
-                <p className="text-sm text-gray-400">Einstieg in die Automatisierung</p>
+          <div className="max-w-lg mx-auto">
+            <div className="glass-panel rounded-2xl p-10 border-2 border-indigo-500/50 bg-indigo-500/5">
+              <div className="text-center mb-8">
+                <h3 className="text-2xl font-bold text-white mb-2">ChatBot Studio</h3>
+                <p className="text-gray-400">Ihr automatisierter Kundendienst</p>
               </div>
 
-              <div className="mb-6">
-                <div className="flex items-baseline gap-1">
-                  <span className="text-3xl font-bold text-white">CHF 89.–</span>
-                  <span className="text-gray-500 text-sm">/Monat</span>
+              {/* Preise */}
+              <div className="space-y-6 mb-8">
+                <div className="p-5 rounded-xl bg-white/5 border border-white/10">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <p className="text-sm text-gray-400 mb-1">Einmalige Einrichtung</p>
+                      <p className="text-xs text-gray-500">Analyse, Konfiguration, Integration</p>
+                    </div>
+                    <p className="text-2xl font-bold text-white">CHF 537.93</p>
+                  </div>
                 </div>
-                <p className="text-sm text-gray-500 mt-1">Einrichtung: CHF 490.– einmalig</p>
+
+                <div className="p-5 rounded-xl bg-indigo-500/10 border border-indigo-500/20">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <p className="text-sm text-gray-400 mb-1">Monatliches Abonnement</p>
+                      <p className="text-xs text-gray-500">Betrieb, Wartung, Support</p>
+                    </div>
+                    <p className="text-2xl font-bold text-white">CHF 105.43</p>
+                  </div>
+                </div>
               </div>
 
-              {/* Nutzungsguthaben */}
-              <div className="mb-6 p-4 rounded-lg bg-white/5 border border-white/10">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm text-gray-400">Monatliches Guthaben</span>
-                  <span className="text-sm font-semibold text-white">1'000 Anfragen</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-400">Zusatzanfragen</span>
-                  <span className="text-sm text-gray-300">CHF 0.05 / Anfrage</span>
-                </div>
-              </div>
-
-              <ul className="space-y-3 mb-8 flex-grow">
+              {/* Leistungen */}
+              <ul className="space-y-3 mb-8">
                 <li className="flex items-start gap-3 text-sm text-gray-300">
                   <Check className="h-4 w-4 text-indigo-400 mt-0.5 flex-shrink-0" />
-                  <span>Textbasierter Chatbot</span>
+                  <span>Vollständige Einrichtung durch unser Team</span>
                 </li>
                 <li className="flex items-start gap-3 text-sm text-gray-300">
                   <Check className="h-4 w-4 text-indigo-400 mt-0.5 flex-shrink-0" />
-                  <span>Beantwortung von Standardfragen (Öffnungszeiten, Preise, Angebote)</span>
+                  <span>Automatische Beantwortung von Kundenanfragen</span>
                 </li>
                 <li className="flex items-start gap-3 text-sm text-gray-300">
                   <Check className="h-4 w-4 text-indigo-400 mt-0.5 flex-shrink-0" />
-                  <span>Einbindung per Code-Snippet</span>
+                  <span>Einfache Einbindung auf Ihrer Website</span>
                 </li>
                 <li className="flex items-start gap-3 text-sm text-gray-300">
                   <Check className="h-4 w-4 text-indigo-400 mt-0.5 flex-shrink-0" />
-                  <span>Einfache Nutzungsstatistiken</span>
+                  <span>Nutzungsstatistiken im Dashboard</span>
                 </li>
                 <li className="flex items-start gap-3 text-sm text-gray-300">
                   <Check className="h-4 w-4 text-indigo-400 mt-0.5 flex-shrink-0" />
                   <span>Schweizer Datenschutz</span>
                 </li>
-              </ul>
-
-              <div className="mt-auto">
-                <p className="text-xs text-gray-500 mb-4">Ideal für Einzelunternehmen und kleine KMU</p>
-                <button
-                  onClick={handleGetStarted}
-                  className="w-full py-3 border border-white/20 text-white rounded-lg font-medium hover:bg-white/5 transition-all"
-                >
-                  Jetzt starten
-                </button>
-              </div>
-            </div>
-
-            {/* Pro Chatbot - Empfohlen */}
-            <div className="glass-panel rounded-2xl p-8 border-2 border-indigo-500/50 relative flex flex-col bg-indigo-500/5">
-              <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-indigo-600 text-white px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest">
-                Empfohlen
-              </div>
-
-              <div className="mb-6">
-                <h3 className="text-xl font-bold text-white mb-2">Pro</h3>
-                <p className="text-sm text-gray-400">Das Komplettpaket für KMU</p>
-              </div>
-
-              <div className="mb-6">
-                <div className="flex items-baseline gap-1">
-                  <span className="text-3xl font-bold text-white">CHF 119.–</span>
-                  <span className="text-gray-500 text-sm">/Monat</span>
-                </div>
-                <p className="text-sm text-gray-500 mt-1">Einrichtung: CHF 790.– einmalig</p>
-              </div>
-
-              {/* Nutzungsguthaben */}
-              <div className="mb-6 p-4 rounded-lg bg-indigo-500/10 border border-indigo-500/20">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm text-gray-400">Monatliches Guthaben</span>
-                  <span className="text-sm font-semibold text-white">2'500 Anfragen</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-400">Zusatzanfragen</span>
-                  <span className="text-sm text-gray-300">CHF 0.04 / Anfrage</span>
-                </div>
-              </div>
-
-              <ul className="space-y-3 mb-8 flex-grow">
                 <li className="flex items-start gap-3 text-sm text-gray-300">
                   <Check className="h-4 w-4 text-indigo-400 mt-0.5 flex-shrink-0" />
-                  <span>Alle Funktionen aus Basic</span>
-                </li>
-                <li className="flex items-start gap-3 text-sm text-gray-300">
-                  <Check className="h-4 w-4 text-indigo-400 mt-0.5 flex-shrink-0" />
-                  <span>Optimierte Antwortstruktur</span>
-                </li>
-                <li className="flex items-start gap-3 text-sm text-gray-300">
-                  <Check className="h-4 w-4 text-indigo-400 mt-0.5 flex-shrink-0" />
-                  <span>Branchenspezifische Inhalte</span>
-                </li>
-                <li className="flex items-start gap-3 text-sm text-gray-300">
-                  <Check className="h-4 w-4 text-indigo-400 mt-0.5 flex-shrink-0" />
-                  <span>Erweiterte Nutzungsstatistiken</span>
-                </li>
-                <li className="flex items-start gap-3 text-sm text-gray-300">
-                  <Check className="h-4 w-4 text-indigo-400 mt-0.5 flex-shrink-0" />
-                  <span>Optionale Sprachfunktion</span>
-                </li>
-                <li className="flex items-start gap-3 text-sm text-gray-300">
-                  <Check className="h-4 w-4 text-indigo-400 mt-0.5 flex-shrink-0" />
-                  <span>Priorisierter Support</span>
+                  <span>Monatlich kündbar</span>
                 </li>
               </ul>
 
-              <div className="mt-auto">
-                <p className="text-xs text-gray-500 mb-4">Die beste Wahl für klassische KMU</p>
-                <button
-                  onClick={handleGetStarted}
-                  className="w-full py-3 bg-indigo-600 text-white rounded-lg font-bold hover:bg-indigo-500 transition-all"
-                >
-                  Jetzt starten
-                </button>
-              </div>
-            </div>
-
-            {/* Business / Premium Chatbot */}
-            <div className="glass-panel rounded-2xl p-8 border border-white/10 flex flex-col">
-              <div className="mb-6">
-                <h3 className="text-xl font-bold text-white mb-2">Business</h3>
-                <p className="text-sm text-gray-400">Individuelle Lösungen</p>
-              </div>
-
-              <div className="mb-6">
-                <div className="flex items-baseline gap-1">
-                  <span className="text-3xl font-bold text-white">CHF 219.–</span>
-                  <span className="text-gray-500 text-sm">/Monat</span>
-                </div>
-                <p className="text-sm text-gray-500 mt-1">Einrichtung: CHF 1'990.– einmalig</p>
-              </div>
-
-              {/* Nutzungsguthaben */}
-              <div className="mb-6 p-4 rounded-lg bg-white/5 border border-white/10">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm text-gray-400">Monatliches Guthaben</span>
-                  <span className="text-sm font-semibold text-white">5'000 Anfragen</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-400">Zusatzanfragen</span>
-                  <span className="text-sm text-gray-300">CHF 0.03 / Anfrage</span>
-                </div>
-              </div>
-
-              <ul className="space-y-3 mb-8 flex-grow">
-                <li className="flex items-start gap-3 text-sm text-gray-300">
-                  <Check className="h-4 w-4 text-indigo-400 mt-0.5 flex-shrink-0" />
-                  <span>Individuelle Wissensbasis</span>
-                </li>
-                <li className="flex items-start gap-3 text-sm text-gray-300">
-                  <Check className="h-4 w-4 text-indigo-400 mt-0.5 flex-shrink-0" />
-                  <span>Mehrsprachigkeit</span>
-                </li>
-                <li className="flex items-start gap-3 text-sm text-gray-300">
-                  <Check className="h-4 w-4 text-indigo-400 mt-0.5 flex-shrink-0" />
-                  <span>Erweiterte Sprachfunktionen</span>
-                </li>
-                <li className="flex items-start gap-3 text-sm text-gray-300">
-                  <Check className="h-4 w-4 text-indigo-400 mt-0.5 flex-shrink-0" />
-                  <span>Antwortgrenzen und Haftungshinweise</span>
-                </li>
-                <li className="flex items-start gap-3 text-sm text-gray-300">
-                  <Check className="h-4 w-4 text-indigo-400 mt-0.5 flex-shrink-0" />
-                  <span>Option für Prozess- oder Systemintegration</span>
-                </li>
-                <li className="flex items-start gap-3 text-sm text-gray-300">
-                  <Check className="h-4 w-4 text-indigo-400 mt-0.5 flex-shrink-0" />
-                  <span>Persönlicher Ansprechpartner</span>
-                </li>
-              </ul>
-
-              <div className="mt-auto">
-                <p className="text-xs text-gray-500 mb-4">Für grössere KMU, Praxen und Kanzleien</p>
-                <button
-                  onClick={handleGetStarted}
-                  className="w-full py-3 border border-white/20 text-white rounded-lg font-medium hover:bg-white/5 transition-all"
-                >
-                  Kontakt aufnehmen
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Erklärung zum Nutzungsmodell */}
-          <div className="mt-16 max-w-3xl mx-auto">
-            <div className="glass-panel rounded-2xl p-8 border border-white/10">
-              <h3 className="text-lg font-bold text-white mb-4">Planbare Kosten, transparente Abrechnung</h3>
-              <p className="text-gray-400 leading-relaxed mb-4">
-                Im Abo ist ein monatliches Anfrage-Guthaben enthalten. Für die meisten KMU reicht dieses
-                Kontingent vollständig aus. Wird der Chatbot stärker genutzt, werden zusätzliche Anfragen
-                automatisch und transparent pro Nutzung abgerechnet.
-              </p>
-              <p className="text-gray-400 leading-relaxed mb-6">
-                Der Chatbot bleibt dabei jederzeit aktiv. Es gibt keine Unterbrechung, keine versteckten Kosten
-                und keine technische Komplexität. Die Nutzung ist im Dashboard jederzeit einsehbar.
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
-                <div className="p-4 rounded-lg bg-white/5">
-                  <p className="text-2xl font-bold text-white mb-1">1'000</p>
-                  <p className="text-xs text-gray-500">Anfragen / Monat</p>
-                  <p className="text-xs text-gray-400 mt-1">Basic</p>
-                </div>
-                <div className="p-4 rounded-lg bg-indigo-500/10 border border-indigo-500/20">
-                  <p className="text-2xl font-bold text-white mb-1">2'500</p>
-                  <p className="text-xs text-gray-500">Anfragen / Monat</p>
-                  <p className="text-xs text-indigo-400 mt-1">Pro</p>
-                </div>
-                <div className="p-4 rounded-lg bg-white/5">
-                  <p className="text-2xl font-bold text-white mb-1">5'000</p>
-                  <p className="text-xs text-gray-500">Anfragen / Monat</p>
-                  <p className="text-xs text-gray-400 mt-1">Business</p>
-                </div>
-              </div>
+              <button
+                onClick={handleGetStarted}
+                className="w-full py-4 bg-indigo-600 text-white rounded-lg font-bold hover:bg-indigo-500 transition-all"
+              >
+                Jetzt starten
+              </button>
             </div>
           </div>
 
           <div className="mt-12 text-center">
             <p className="text-sm text-gray-500">
-              Alle Modelle monatlich kündbar. Keine versteckten Kosten.
+              Keine versteckten Kosten. Keine Mindestlaufzeit.
             </p>
           </div>
         </section>
