@@ -35,6 +35,7 @@ export default function Dashboard() {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [step, setStep] = useState<'details' | 'scraping' | 'done'>('details')
   const [name, setName] = useState('')
+  const [systemPrompt, setSystemPrompt] = useState('')
   const [websiteUrl, setWebsiteUrl] = useState('')
   const [creating, setCreating] = useState(false)
   const [newChatbot, setNewChatbot] = useState<Chatbot | null>(null)
@@ -213,6 +214,7 @@ export default function Dashboard() {
     setShowCreateModal(true)
     setStep('details')
     setName('')
+    setSystemPrompt('')
     setWebsiteUrl('')
     setNewChatbot(null)
     setError(null)
@@ -226,6 +228,7 @@ export default function Dashboard() {
     try {
       const bot = await createChatbot({
         name,
+        systemPrompt: systemPrompt || undefined,
         allowedDomains: [],
         status: 'DRAFT',
       })
@@ -799,6 +802,17 @@ export default function Dashboard() {
                       placeholder="z.B. Support-Bot DE"
                       required
                       autoFocus
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      System-Prompt <span className="text-gray-500 font-normal">(optional)</span>
+                    </label>
+                    <textarea
+                      value={systemPrompt}
+                      onChange={(e) => setSystemPrompt(e.target.value)}
+                      className="w-full bg-dark-950 border border-white/10 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-indigo-500/50 outline-none min-h-[100px] text-sm"
+                      placeholder="z.B. Du bist ein freundlicher Kundenservice-Assistent für..."
                     />
                   </div>
                   <div className="flex gap-3 pt-2">
