@@ -462,7 +462,7 @@ export default function LandingPage() {
             <h4 className="font-bold text-white text-sm">Rechtliches</h4>
             <div className="flex flex-col gap-3 text-sm text-gray-500 font-medium">
               <a href="/datenschutz" className="hover:text-white transition-colors">Datenschutz</a>
-              <a href="/nutzungsbedingungen" className="hover:text-white transition-colors">Nutzungsbedingungen</a>
+              <a href="/impressum" className="hover:text-white transition-colors">Impressum</a>
             </div>
           </div>
 

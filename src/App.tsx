@@ -4,7 +4,7 @@ import Dashboard from './pages/Dashboard'
 import ChatbotTraining from './pages/ChatbotTraining'
 import Widget from './pages/Widget'
 import Datenschutz from './pages/Datenschutz'
-import Nutzungsbedingungen from './pages/Nutzungsbedingungen'
+import Impressum from './pages/Impressum'
 import { ProtectedRoute } from './components/ProtectedRoute'
 
 function App() {
@@ -12,7 +12,7 @@ function App() {
     <Routes>
       <Route path="/" element={<LandingPage />} />
       <Route path="/datenschutz" element={<Datenschutz />} />
-      <Route path="/nutzungsbedingungen" element={<Nutzungsbedingungen />} />
+      <Route path="/impressum" element={<Impressum />} />
       <Route
         path="/dashboard"
         element={
