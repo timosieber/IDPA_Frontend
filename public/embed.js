@@ -130,13 +130,21 @@
     closeBtn.addEventListener('click', close);
 
     // Show tooltip once if user hasn't opened the chat yet
+    var tooltipShown = false;
     var tooltipTimer = setTimeout(function () {
-      if (isOpen) return;
+      if (isOpen || tooltipShown) return;
+      tooltipShown = true;
       tooltip.style.display = 'block';
       setTimeout(function () {
         tooltip.style.display = 'none';
       }, 6500);
     }, 4000);
+
+    // Cancel tooltip timer when chat is opened
+    button.addEventListener('click', function () {
+      clearTimeout(tooltipTimer);
+      tooltipShown = true;
+    });
 
     // Cleanup timer on unload
     window.addEventListener('beforeunload', function () {
