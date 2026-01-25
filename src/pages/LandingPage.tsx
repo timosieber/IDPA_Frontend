@@ -461,16 +461,15 @@ export default function LandingPage() {
           <div className="space-y-4">
             <h4 className="font-bold text-white text-sm">Rechtliches</h4>
             <div className="flex flex-col gap-3 text-sm text-gray-500 font-medium">
-              <a href="#" className="hover:text-white transition-colors">Datenschutz</a>
-              <a href="#" className="hover:text-white transition-colors">Impressum</a>
-              <a href="#" className="hover:text-white transition-colors">AGB</a>
+              <a href="/datenschutz" className="hover:text-white transition-colors">Datenschutz</a>
+              <a href="/nutzungsbedingungen" className="hover:text-white transition-colors">Nutzungsbedingungen</a>
             </div>
           </div>
-          
+
           <div className="space-y-4">
             <h4 className="font-bold text-white text-sm">Kontakt</h4>
             <div className="flex flex-col gap-3 text-sm text-gray-500 font-medium">
-              <a href="#" className="hover:text-white transition-colors">Kontakt aufnehmen</a>
+              <a href="mailto:timo.sieber@bbzsogr.ch" className="hover:text-white transition-colors">Kontakt aufnehmen</a>
               <span className="text-xs text-gray-600">© 2025 ChatBot Studio</span>
             </div>
           </div>
