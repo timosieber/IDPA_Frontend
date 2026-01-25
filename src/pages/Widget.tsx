@@ -779,13 +779,14 @@ export default function Widget() {
             {/* Voice toggle */}
             <button
               type="button"
-              onClick={async () => {
+              onClick={() => {
                 if (voiceMode) {
                   if (recorder.state === 'recording') recorder.cancelRecording()
                   player.stop()
                 } else {
                   // Unlock audio on iOS when entering voice mode (user tap)
-                  await player.unlockAudio()
+                  // Don't await - let it run in background
+                  player.unlockAudio().catch(() => {})
                 }
                 setVoiceMode(!voiceMode)
               }}

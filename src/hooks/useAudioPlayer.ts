@@ -26,49 +26,39 @@ export async function unlockIOSAudio(): Promise<void> {
 
   console.log('[AudioPlayer] Attempting to unlock iOS audio...')
 
-  try {
-    // Method 1: Use AudioContext with a silent oscillator
-    const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
-    const ctx = new AudioContextClass()
+  // Wrap in timeout to prevent blocking
+  const timeoutPromise = new Promise<void>((resolve) => setTimeout(resolve, 500))
 
-    // Create a silent oscillator and play it briefly
-    const oscillator = ctx.createOscillator()
-    const gainNode = ctx.createGain()
-    gainNode.gain.value = 0 // Silent
-    oscillator.connect(gainNode)
-    gainNode.connect(ctx.destination)
-    oscillator.start(0)
-    oscillator.stop(ctx.currentTime + 0.001) // Stop after 1ms
-
-    // Resume if suspended
-    if (ctx.state === 'suspended') {
-      await ctx.resume()
-    }
-
-    // Method 2: Also try with Audio element as backup
-    const audio = new Audio()
-    audio.setAttribute('playsinline', 'true')
-    audio.setAttribute('webkit-playsinline', 'true')
-    // Create a tiny valid WAV file (silence, 1 sample)
-    const silentWav = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA='
-    audio.src = silentWav
-    audio.volume = 0
-
+  const unlockPromise = (async () => {
     try {
-      await audio.play()
-      audio.pause()
-    } catch {
-      // Ignore errors from Audio element method
-      console.log('[AudioPlayer] Audio element method failed, but AudioContext may have worked')
-    }
+      // Method 1: Use AudioContext with a silent oscillator
+      const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
+      const ctx = new AudioContextClass()
 
-    audioUnlocked = true
-    console.log('[AudioPlayer] iOS audio unlocked successfully')
-  } catch (e) {
-    console.warn('[AudioPlayer] Failed to unlock iOS audio:', e)
-    // Still mark as attempted to avoid retry spam
-    audioUnlocked = true
-  }
+      // Resume if suspended (do this first on iOS)
+      if (ctx.state === 'suspended') {
+        await ctx.resume()
+      }
+
+      // Create a silent oscillator and play it briefly
+      const oscillator = ctx.createOscillator()
+      const gainNode = ctx.createGain()
+      gainNode.gain.value = 0 // Silent
+      oscillator.connect(gainNode)
+      gainNode.connect(ctx.destination)
+      oscillator.start(0)
+      oscillator.stop(ctx.currentTime + 0.01) // Stop after 10ms
+
+      console.log('[AudioPlayer] iOS audio unlocked successfully via AudioContext')
+    } catch (e) {
+      console.warn('[AudioPlayer] AudioContext unlock failed:', e)
+    }
+  })()
+
+  // Race between unlock and timeout
+  await Promise.race([unlockPromise, timeoutPromise])
+  audioUnlocked = true
+  console.log('[AudioPlayer] iOS audio unlock completed')
 }
 
 export function useAudioPlayer(onPlaybackEnded?: () => void): AudioPlayerResult {
