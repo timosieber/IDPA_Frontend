@@ -62,9 +62,11 @@ export default function Impressum() {
             </section>
 
             <section>
-              <h2 className="text-xl font-semibold text-white mb-4">Vertretungsberechtigte Person</h2>
+              <h2 className="text-xl font-semibold text-white mb-4">Vertretungsberechtigte Personen</h2>
               <p className="text-gray-400 leading-relaxed">
-                Timo Sieber (Inhaber)
+                Timo Sieber<br />
+                Linus Klausner<br />
+                Jan Schmocker
               </p>
             </section>
 
