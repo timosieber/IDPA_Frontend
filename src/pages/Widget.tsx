@@ -475,10 +475,13 @@ export default function Widget() {
   if (!termsAccepted) {
     return (
       <div
-        className="h-[100dvh] w-screen bg-gradient-to-b from-indigo-50 via-white to-white text-gray-900"
-        style={{ '--primary': primaryColor, paddingBottom: 'env(safe-area-inset-bottom)', paddingTop: 'env(safe-area-inset-top)' } as CSSProperties}
+        className="fixed inset-0 w-full h-full bg-gradient-to-b from-indigo-50 via-white to-white text-gray-900 overflow-hidden"
+        style={{ '--primary': primaryColor } as CSSProperties}
       >
-        <div className="h-full flex flex-col">
+        <div
+          className="h-full flex flex-col"
+          style={{ paddingBottom: 'env(safe-area-inset-bottom)', paddingTop: 'env(safe-area-inset-top)' }}
+        >
           {/* Preview header - shows what chat will look like */}
           <header className="px-4 py-3 border-b border-gray-100 bg-white/80 backdrop-blur-md">
             <div className="flex items-center gap-3">
@@ -567,10 +570,13 @@ export default function Widget() {
 
   return (
     <div
-      className="h-[100dvh] w-screen bg-white text-gray-900"
-      style={{ '--primary': primaryColor, paddingBottom: 'env(safe-area-inset-bottom)', paddingTop: 'env(safe-area-inset-top)' } as CSSProperties}
+      className="fixed inset-0 w-full h-full bg-white text-gray-900 overflow-hidden"
+      style={{ '--primary': primaryColor } as CSSProperties}
     >
-      <div className="h-full flex flex-col">
+      <div
+        className="h-full flex flex-col"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)', paddingTop: 'env(safe-area-inset-top)' }}
+      >
         {/* Minimal Header */}
         <header className="px-4 py-2.5 border-b border-gray-100 bg-white">
           <div className="flex items-center justify-between">
