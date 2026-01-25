@@ -358,10 +358,10 @@ export default function LandingPage() {
 
               <div className="mb-6">
                 <div className="flex items-baseline gap-1">
-                  <span className="text-3xl font-bold text-white">CHF 79–99</span>
+                  <span className="text-3xl font-bold text-white">CHF 89.–</span>
                   <span className="text-gray-500 text-sm">/Monat</span>
                 </div>
-                <p className="text-sm text-gray-500 mt-1">Einrichtung: CHF 490–540 einmalig</p>
+                <p className="text-sm text-gray-500 mt-1">Einrichtung: CHF 490.– einmalig</p>
               </div>
 
               {/* Nutzungsguthaben */}
@@ -379,7 +379,7 @@ export default function LandingPage() {
               <ul className="space-y-3 mb-8 flex-grow">
                 <li className="flex items-start gap-3 text-sm text-gray-300">
                   <Check className="h-4 w-4 text-indigo-400 mt-0.5 flex-shrink-0" />
-                  <span>Textbasierter KI-Chatbot</span>
+                  <span>Textbasierter Chatbot</span>
                 </li>
                 <li className="flex items-start gap-3 text-sm text-gray-300">
                   <Check className="h-4 w-4 text-indigo-400 mt-0.5 flex-shrink-0" />
@@ -391,11 +391,11 @@ export default function LandingPage() {
                 </li>
                 <li className="flex items-start gap-3 text-sm text-gray-300">
                   <Check className="h-4 w-4 text-indigo-400 mt-0.5 flex-shrink-0" />
-                  <span>Standard-Nutzungsstatistiken</span>
+                  <span>Einfache Nutzungsstatistiken</span>
                 </li>
                 <li className="flex items-start gap-3 text-sm text-gray-300">
                   <Check className="h-4 w-4 text-indigo-400 mt-0.5 flex-shrink-0" />
-                  <span>Schweizer Hosting, DSGVO-konform</span>
+                  <span>Schweizer Datenschutz</span>
                 </li>
               </ul>
 
@@ -423,10 +423,10 @@ export default function LandingPage() {
 
               <div className="mb-6">
                 <div className="flex items-baseline gap-1">
-                  <span className="text-3xl font-bold text-white">CHF 105–129</span>
+                  <span className="text-3xl font-bold text-white">CHF 119.–</span>
                   <span className="text-gray-500 text-sm">/Monat</span>
                 </div>
-                <p className="text-sm text-gray-500 mt-1">Einrichtung: CHF 690–890 einmalig</p>
+                <p className="text-sm text-gray-500 mt-1">Einrichtung: CHF 790.– einmalig</p>
               </div>
 
               {/* Nutzungsguthaben */}
@@ -448,11 +448,11 @@ export default function LandingPage() {
                 </li>
                 <li className="flex items-start gap-3 text-sm text-gray-300">
                   <Check className="h-4 w-4 text-indigo-400 mt-0.5 flex-shrink-0" />
-                  <span>Optimierte Prompt- und Antwortstruktur</span>
+                  <span>Optimierte Antwortstruktur</span>
                 </li>
                 <li className="flex items-start gap-3 text-sm text-gray-300">
                   <Check className="h-4 w-4 text-indigo-400 mt-0.5 flex-shrink-0" />
-                  <span>Branchenspezifische Inhaltsanpassung</span>
+                  <span>Branchenspezifische Inhalte</span>
                 </li>
                 <li className="flex items-start gap-3 text-sm text-gray-300">
                   <Check className="h-4 w-4 text-indigo-400 mt-0.5 flex-shrink-0" />
@@ -488,10 +488,10 @@ export default function LandingPage() {
 
               <div className="mb-6">
                 <div className="flex items-baseline gap-1">
-                  <span className="text-3xl font-bold text-white">CHF 180–250</span>
+                  <span className="text-3xl font-bold text-white">CHF 219.–</span>
                   <span className="text-gray-500 text-sm">/Monat</span>
                 </div>
-                <p className="text-sm text-gray-500 mt-1">Einrichtung: CHF 1'500–2'500 einmalig</p>
+                <p className="text-sm text-gray-500 mt-1">Einrichtung: CHF 1'990.– einmalig</p>
               </div>
 
               {/* Nutzungsguthaben */}
@@ -500,11 +500,10 @@ export default function LandingPage() {
                   <span className="text-sm text-gray-400">Monatliches Guthaben</span>
                   <span className="text-sm font-semibold text-white">5'000 Anfragen</span>
                 </div>
-                <div className="flex justify-between items-center mb-2">
+                <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-400">Zusatzanfragen</span>
                   <span className="text-sm text-gray-300">CHF 0.03 / Anfrage</span>
                 </div>
-                <p className="text-xs text-gray-500 mt-2">Individuelle Pauschalen auf Anfrage</p>
               </div>
 
               <ul className="space-y-3 mb-8 flex-grow">
@@ -526,7 +525,7 @@ export default function LandingPage() {
                 </li>
                 <li className="flex items-start gap-3 text-sm text-gray-300">
                   <Check className="h-4 w-4 text-indigo-400 mt-0.5 flex-shrink-0" />
-                  <span>Prozess- oder Systemintegration</span>
+                  <span>Option für Prozess- oder Systemintegration</span>
                 </li>
                 <li className="flex items-start gap-3 text-sm text-gray-300">
                   <Check className="h-4 w-4 text-indigo-400 mt-0.5 flex-shrink-0" />
@@ -549,15 +548,15 @@ export default function LandingPage() {
           {/* Erklärung zum Nutzungsmodell */}
           <div className="mt-16 max-w-3xl mx-auto">
             <div className="glass-panel rounded-2xl p-8 border border-white/10">
-              <h3 className="text-lg font-bold text-white mb-4">Transparentes Nutzungsmodell</h3>
+              <h3 className="text-lg font-bold text-white mb-4">Planbare Kosten, transparente Abrechnung</h3>
               <p className="text-gray-400 leading-relaxed mb-4">
-                Im monatlichen Abo ist ein Anfrage-Kontingent enthalten, das für die meisten KMU ausreicht.
-                Wird der Chatbot stärker genutzt, werden zusätzliche Anfragen automatisch und transparent
-                pro Nutzung verrechnet.
+                Im Abo ist ein monatliches Anfrage-Guthaben enthalten. Für die meisten KMU reicht dieses
+                Kontingent vollständig aus. Wird der Chatbot stärker genutzt, werden zusätzliche Anfragen
+                automatisch und transparent pro Nutzung abgerechnet.
               </p>
               <p className="text-gray-400 leading-relaxed mb-6">
-                Der Chatbot bleibt dabei jederzeit aktiv. Es gibt keine Unterbrechung oder harte Limits.
-                Die Nutzung ist im Dashboard jederzeit einsehbar, sodass Sie volle Kontrolle über Ihre Kosten behalten.
+                Der Chatbot bleibt dabei jederzeit aktiv. Es gibt keine Unterbrechung, keine versteckten Kosten
+                und keine technische Komplexität. Die Nutzung ist im Dashboard jederzeit einsehbar.
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
                 <div className="p-4 rounded-lg bg-white/5">
