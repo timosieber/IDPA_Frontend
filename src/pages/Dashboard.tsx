@@ -1,4 +1,4 @@
-import { Bot, LogOut, Plus, MessageSquare, GraduationCap, Copy, Trash2, Globe, CheckCircle, Clock, XCircle, Zap, ArrowRight, Check } from 'lucide-react'
+import { Bot, LogOut, Plus, MessageSquare, Copy, Trash2, Globe, CheckCircle, Clock, XCircle, Zap, Check } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -350,7 +350,6 @@ export default function Dashboard() {
   }
 
   const activeBots = chatbots.filter(b => b.status === 'ACTIVE').length
-  const totalSources = 0 // TODO: real count
 
   return (
     <div className="min-h-screen bg-dark-950 text-white font-sans selection:bg-indigo-500/30">
@@ -440,19 +439,12 @@ export default function Dashboard() {
             <p className="text-3xl font-bold text-white">{chatbots.length}</p>
           </div>
 
-          <div className="glass-panel p-6 rounded-xl relative overflow-hidden cursor-pointer hover:border-indigo-500/30 transition-colors" onClick={() => navigate('/training')}>
+          <div className="glass-panel p-6 rounded-xl relative overflow-hidden">
             <div className="absolute top-0 right-0 p-4 opacity-5">
-              <GraduationCap className="h-24 w-24 text-white" />
+              <MessageSquare className="h-24 w-24 text-white" />
             </div>
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="text-sm font-medium text-gray-400 mb-1">Wissensbasis</p>
-                <p className="text-3xl font-bold text-white">{totalSources}</p>
-              </div>
-              <div className="bg-white/5 p-2 rounded-lg">
-                <ArrowRight className="h-4 w-4 text-gray-400" />
-              </div>
-            </div>
+            <p className="text-sm font-medium text-gray-400 mb-1">Konversationen heute</p>
+            <p className="text-3xl font-bold text-white">—</p>
           </div>
         </div>
 
@@ -587,6 +579,15 @@ export default function Dashboard() {
                       <div>
                         <h4 className="font-medium text-white">Wissensbasis wird aufgebaut</h4>
                         <p className="text-sm text-indigo-200 mt-1">Das System analysiert Ihre Website. Dies kann einige Minuten dauern.</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedBot.systemPrompt && (
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider mb-4">System-Prompt</h3>
+                      <div className="bg-dark-950 border border-white/10 rounded-xl p-4">
+                        <p className="text-sm text-gray-300 whitespace-pre-wrap">{selectedBot.systemPrompt}</p>
                       </div>
                     </div>
                   )}
