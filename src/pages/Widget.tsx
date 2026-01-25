@@ -297,9 +297,9 @@ export default function Widget() {
         setBotTheme((s.chatbot?.theme as Record<string, unknown> | null | undefined) ?? null)
         setReady(true)
         setError(null)
-        if (greeting) {
-          setMessages((prev) => (prev.length === 0 ? [{ role: 'assistant', content: greeting }] : prev))
-        }
+        // Always show greeting message when chat opens
+        const greetingMessage = greeting || 'Hallo! Wie kann ich dir helfen?'
+        setMessages((prev) => (prev.length === 0 ? [{ role: 'assistant', content: greetingMessage }] : prev))
       } catch (e) {
         const msg = e instanceof Error ? e.message : 'Fehler beim Initialisieren'
         // If the bot is still provisioning, keep the UI in "preparing" state and retry.
