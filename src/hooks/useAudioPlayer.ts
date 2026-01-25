@@ -53,17 +53,36 @@ export function useAudioPlayer(onPlaybackEnded?: () => void): AudioPlayerResult 
         const audio = new Audio(url)
         audioRef.current = audio
 
-        audio.onloadeddata = () => {
-          setState('playing')
-          audio.play().catch(() => {
-            setError('Wiedergabe fehlgeschlagen')
+        // iOS Safari requires user interaction for autoplay
+        // Set up attributes to maximize compatibility
+        audio.setAttribute('playsinline', 'true')
+        audio.setAttribute('webkit-playsinline', 'true')
+
+        // Use canplaythrough for better iOS compatibility
+        const playPromise = new Promise<void>((resolve, reject) => {
+          audio.oncanplaythrough = () => {
+            setState('playing')
+            // Play immediately when ready - this works better on iOS
+            audio.play()
+              .then(resolve)
+              .catch((playError) => {
+                console.warn('Autoplay blocked:', playError)
+                // On iOS, autoplay might be blocked - notify user
+                setError('Tippen Sie zum Abspielen')
+                setState('idle')
+                if (onPlaybackEndedRef.current) {
+                  onPlaybackEndedRef.current()
+                }
+                reject(playError)
+              })
+          }
+
+          audio.onerror = () => {
+            setError('Audio konnte nicht geladen werden')
             setState('idle')
-            // Still notify that playback "ended" so voice mode can continue
-            if (onPlaybackEndedRef.current) {
-              onPlaybackEndedRef.current()
-            }
-          })
-        }
+            reject(new Error('Audio load error'))
+          }
+        })
 
         audio.ontimeupdate = () => {
           if (audio.duration) {
@@ -80,15 +99,10 @@ export function useAudioPlayer(onPlaybackEnded?: () => void): AudioPlayerResult 
           }
         }
 
-        audio.onerror = () => {
-          setError('Audio konnte nicht geladen werden')
-          setState('idle')
-        }
-
         audio.load()
+        await playPromise
       } catch {
-        setError('Wiedergabe fehlgeschlagen')
-        setState('idle')
+        // Error already handled in promise
       }
     },
     [cleanup]

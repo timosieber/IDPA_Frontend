@@ -109,8 +109,16 @@ export function useVoiceRecorder(onAutoSend?: () => void): VoiceRecorderResult {
       streamRef.current = stream
 
       // Set up audio analyser for level visualization
-      const audioContext = new AudioContext()
+      // Use webkitAudioContext for iOS Safari compatibility
+      const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
+      const audioContext = new AudioContextClass()
       audioContextRef.current = audioContext
+
+      // iOS Safari requires explicit resume after user interaction
+      if (audioContext.state === 'suspended') {
+        await audioContext.resume()
+      }
+
       const source = audioContext.createMediaStreamSource(stream)
       const analyser = audioContext.createAnalyser()
       analyser.fftSize = 256
@@ -120,16 +128,29 @@ export function useVoiceRecorder(onAutoSend?: () => void): VoiceRecorderResult {
       silenceStartRef.current = null
       updateAudioLevel()
 
-      // Create MediaRecorder with best available codec
-      // Use audioBitsPerSecond to force a fresh container with proper headers
-      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-        ? 'audio/webm;codecs=opus'
-        : 'audio/webm'
+      // Determine best supported MIME type for the platform
+      // Safari/iOS doesn't support WebM, use mp4 or fallback
+      let mimeType = 'audio/webm;codecs=opus'
+      if (!MediaRecorder.isTypeSupported(mimeType)) {
+        mimeType = 'audio/webm'
+      }
+      if (!MediaRecorder.isTypeSupported(mimeType)) {
+        // Safari/iOS fallback
+        mimeType = 'audio/mp4'
+      }
+      if (!MediaRecorder.isTypeSupported(mimeType)) {
+        // Last resort fallback
+        mimeType = ''  // Let browser choose default
+      }
 
-      const mediaRecorder = new MediaRecorder(stream, {
-        mimeType,
+      const recorderOptions: MediaRecorderOptions = {
         audioBitsPerSecond: 128000, // 128kbps - forces fresh encoding
-      })
+      }
+      if (mimeType) {
+        recorderOptions.mimeType = mimeType
+      }
+
+      const mediaRecorder = new MediaRecorder(stream, recorderOptions)
       mediaRecorderRef.current = mediaRecorder
       chunksRef.current = []
 
