@@ -59,13 +59,37 @@ export function useVoiceRecorder(onAutoSend?: () => void): VoiceRecorderResult {
   }, [])
 
   const updateAudioLevel = useCallback(() => {
-    if (!analyserRef.current) return
+    if (!analyserRef.current || !audioContextRef.current) return
 
-    const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount)
-    analyserRef.current.getByteFrequencyData(dataArray)
+    // Check if AudioContext is running (important for iOS)
+    if (audioContextRef.current.state !== 'running') {
+      // Try to resume if suspended
+      audioContextRef.current.resume().catch(() => {})
+      animationRef.current = requestAnimationFrame(updateAudioLevel)
+      return
+    }
 
-    // Calculate average volume
-    const average = dataArray.reduce((a, b) => a + b, 0) / dataArray.length
+    const analyser = analyserRef.current
+    const bufferLength = analyser.frequencyBinCount
+
+    // Try frequency data first (more visual), fall back to time domain (more reliable on iOS)
+    const frequencyData = new Uint8Array(bufferLength)
+    analyser.getByteFrequencyData(frequencyData)
+    let average = frequencyData.reduce((a, b) => a + b, 0) / bufferLength
+
+    // If frequency data is all zeros (iOS issue), use time domain data
+    if (average === 0) {
+      const timeDomainData = new Uint8Array(bufferLength)
+      analyser.getByteTimeDomainData(timeDomainData)
+      // Time domain data centers around 128, calculate deviation
+      let sum = 0
+      for (let i = 0; i < bufferLength; i++) {
+        const deviation = Math.abs((timeDomainData[i] ?? 128) - 128)
+        sum += deviation
+      }
+      average = sum / bufferLength * 2 // Scale up for visibility
+    }
+
     const level = Math.min(1, average / 128)
     setAudioLevel(level)
 
@@ -116,17 +140,39 @@ export function useVoiceRecorder(onAutoSend?: () => void): VoiceRecorderResult {
       audioContextRef.current = audioContext
 
       // iOS Safari requires explicit resume after user interaction
+      // Wait until it's actually running
       if (audioContext.state === 'suspended') {
         await audioContext.resume()
+      }
+
+      // Double-check and wait for running state (iOS sometimes needs this)
+      if (audioContext.state !== 'running') {
+        await new Promise<void>((resolve) => {
+          const checkState = () => {
+            if (audioContext.state === 'running') {
+              resolve()
+            } else {
+              audioContext.resume().then(() => {
+                setTimeout(checkState, 50)
+              }).catch(() => resolve())
+            }
+          }
+          // Timeout after 500ms
+          setTimeout(resolve, 500)
+          checkState()
+        })
       }
 
       const source = audioContext.createMediaStreamSource(stream)
       const analyser = audioContext.createAnalyser()
       analyser.fftSize = 256
+      analyser.smoothingTimeConstant = 0.3 // Faster response
       source.connect(analyser)
       analyserRef.current = analyser
       recordingStartRef.current = Date.now()
       silenceStartRef.current = null
+
+      // Start audio level updates
       updateAudioLevel()
 
       // Determine best supported MIME type for the platform
