@@ -394,10 +394,6 @@ export default function LandingPage() {
                 </li>
                 <li className="flex items-start gap-3 text-sm text-gray-300">
                   <Check className="h-4 w-4 text-indigo-400 mt-0.5 flex-shrink-0" />
-                  <span>Nutzungsstatistiken im Dashboard</span>
-                </li>
-                <li className="flex items-start gap-3 text-sm text-gray-300">
-                  <Check className="h-4 w-4 text-indigo-400 mt-0.5 flex-shrink-0" />
                   <span>Schweizer Datenschutz</span>
                 </li>
                 <li className="flex items-start gap-3 text-sm text-gray-300">
