@@ -14,8 +14,21 @@ export interface AudioPlayerResult {
   unlockAudio: () => Promise<void> // Call on user interaction to unlock iOS audio
 }
 
-// Shared audio context for iOS unlock
+// Shared audio element for iOS - reusing the same element helps with autoplay
+let sharedAudioElement: HTMLAudioElement | null = null
 let audioUnlocked = false
+
+// Get or create the shared audio element
+function getSharedAudioElement(): HTMLAudioElement {
+  if (!sharedAudioElement) {
+    sharedAudioElement = new Audio()
+    sharedAudioElement.setAttribute('playsinline', 'true')
+    sharedAudioElement.setAttribute('webkit-playsinline', 'true')
+    // Preload setting helps on iOS
+    sharedAudioElement.preload = 'auto'
+  }
+  return sharedAudioElement
+}
 
 // Unlock audio playback on iOS - must be called from a user gesture
 export async function unlockIOSAudio(): Promise<void> {
@@ -26,39 +39,31 @@ export async function unlockIOSAudio(): Promise<void> {
 
   console.log('[AudioPlayer] Attempting to unlock iOS audio...')
 
-  // Wrap in timeout to prevent blocking
-  const timeoutPromise = new Promise<void>((resolve) => setTimeout(resolve, 500))
+  try {
+    const audio = getSharedAudioElement()
 
-  const unlockPromise = (async () => {
-    try {
-      // Method 1: Use AudioContext with a silent oscillator
-      const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
-      const ctx = new AudioContextClass()
+    // Create a tiny silent WAV and play it
+    // This "warms up" the audio element for future use
+    const silentWav = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA'
+    audio.src = silentWav
+    audio.volume = 0.01 // Very quiet but not zero (iOS ignores volume=0)
 
-      // Resume if suspended (do this first on iOS)
-      if (ctx.state === 'suspended') {
-        await ctx.resume()
-      }
-
-      // Create a silent oscillator and play it briefly
-      const oscillator = ctx.createOscillator()
-      const gainNode = ctx.createGain()
-      gainNode.gain.value = 0 // Silent
-      oscillator.connect(gainNode)
-      gainNode.connect(ctx.destination)
-      oscillator.start(0)
-      oscillator.stop(ctx.currentTime + 0.01) // Stop after 10ms
-
-      console.log('[AudioPlayer] iOS audio unlocked successfully via AudioContext')
-    } catch (e) {
-      console.warn('[AudioPlayer] AudioContext unlock failed:', e)
+    // Play and immediately pause
+    const playPromise = audio.play()
+    if (playPromise) {
+      await playPromise
     }
-  })()
+    audio.pause()
+    audio.currentTime = 0
+    audio.volume = 1 // Reset volume for actual playback
 
-  // Race between unlock and timeout
-  await Promise.race([unlockPromise, timeoutPromise])
-  audioUnlocked = true
-  console.log('[AudioPlayer] iOS audio unlock completed')
+    audioUnlocked = true
+    console.log('[AudioPlayer] iOS audio unlocked successfully')
+  } catch (e) {
+    console.warn('[AudioPlayer] Failed to unlock iOS audio:', e)
+    // Still mark as unlocked to prevent retry spam
+    audioUnlocked = true
+  }
 }
 
 export function useAudioPlayer(onPlaybackEnded?: () => void): AudioPlayerResult {
@@ -100,20 +105,15 @@ export function useAudioPlayer(onPlaybackEnded?: () => void): AudioPlayerResult 
         const url = URL.createObjectURL(blob)
         urlRef.current = url
 
-        const audio = new Audio(url)
+        // Use the shared audio element on iOS for better autoplay support
+        const audio = getSharedAudioElement()
         audioRef.current = audio
 
-        // iOS Safari requires user interaction for autoplay
-        // Set up attributes to maximize compatibility
-        audio.setAttribute('playsinline', 'true')
-        audio.setAttribute('webkit-playsinline', 'true')
-
-        // Use canplaythrough for better iOS compatibility
+        // Set up event handlers
         const playPromise = new Promise<void>((resolve, reject) => {
-          audio.oncanplaythrough = () => {
+          const onCanPlay = () => {
             console.log('[AudioPlayer] Audio ready, attempting play...')
             setState('playing')
-            // Play immediately when ready - this works better on iOS
             audio.play()
               .then(() => {
                 console.log('[AudioPlayer] Playback started successfully')
@@ -121,7 +121,6 @@ export function useAudioPlayer(onPlaybackEnded?: () => void): AudioPlayerResult 
               })
               .catch((playError) => {
                 console.warn('[AudioPlayer] Autoplay blocked:', playError)
-                // On iOS, autoplay might be blocked - notify user
                 setError('Tippen Sie zum Abspielen')
                 setState('idle')
                 if (onPlaybackEndedRef.current) {
@@ -129,32 +128,43 @@ export function useAudioPlayer(onPlaybackEnded?: () => void): AudioPlayerResult 
                 }
                 reject(playError)
               })
+            audio.removeEventListener('canplaythrough', onCanPlay)
           }
 
-          audio.onerror = (e) => {
+          const onError = (e: Event) => {
             console.error('[AudioPlayer] Audio load error:', e)
             setError('Audio konnte nicht geladen werden')
             setState('idle')
+            audio.removeEventListener('error', onError)
             reject(new Error('Audio load error'))
           }
+
+          audio.addEventListener('canplaythrough', onCanPlay, { once: true })
+          audio.addEventListener('error', onError, { once: true })
         })
 
-        audio.ontimeupdate = () => {
+        const onTimeUpdate = () => {
           if (audio.duration) {
             setProgress(audio.currentTime / audio.duration)
           }
         }
 
-        audio.onended = () => {
+        const onEnded = () => {
           console.log('[AudioPlayer] Playback ended')
           setState('idle')
           setProgress(1)
-          // Notify when playback ends (for voice conversation mode)
+          audio.removeEventListener('timeupdate', onTimeUpdate)
+          audio.removeEventListener('ended', onEnded)
           if (onPlaybackEndedRef.current) {
             onPlaybackEndedRef.current()
           }
         }
 
+        audio.addEventListener('timeupdate', onTimeUpdate)
+        audio.addEventListener('ended', onEnded)
+
+        // Set source and load
+        audio.src = url
         audio.load()
         await playPromise
       } catch {
