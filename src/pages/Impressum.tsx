@@ -36,10 +36,11 @@ export default function Impressum() {
           <h1 className="text-4xl font-bold mb-8">Impressum</h1>
 
           <div className="prose prose-invert prose-gray max-w-none space-y-8">
+
             <section>
-              <h2 className="text-xl font-semibold text-white mb-4">Angaben gemäss Schweizer Recht</h2>
+              <h2 className="text-xl font-semibold text-white mb-4">Angaben gemäss Art. 3 UWG und Art. 19 DSG</h2>
               <p className="text-gray-400 leading-relaxed">
-                ChatBot Studio<br />
+                <strong className="text-white">ChatBot Studio</strong><br />
                 Timo Sieber<br />
                 Schweiz
               </p>
@@ -55,15 +56,33 @@ export default function Impressum() {
             <section>
               <h2 className="text-xl font-semibold text-white mb-4">Verantwortlich für den Inhalt</h2>
               <p className="text-gray-400 leading-relaxed">
-                Timo Sieber
+                Timo Sieber<br />
+                E-Mail: <a href="mailto:timo.sieber@bbzsogr.ch" className="text-indigo-400 hover:text-indigo-300">timo.sieber@bbzsogr.ch</a>
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-xl font-semibold text-white mb-4">Vertretungsberechtigte Person</h2>
+              <p className="text-gray-400 leading-relaxed">
+                Timo Sieber (Inhaber)
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-xl font-semibold text-white mb-4">Art der angebotenen Dienstleistungen</h2>
+              <p className="text-gray-400 leading-relaxed">
+                ChatBot Studio bietet Software-as-a-Service (SaaS) Lösungen im Bereich automatisierter
+                Kundenkommunikation mittels KI-gestützter Chatbots für Unternehmen an.
               </p>
             </section>
 
             <section>
               <h2 className="text-xl font-semibold text-white mb-4">Haftungsausschluss</h2>
+
+              <h3 className="text-lg font-medium text-white mt-6 mb-3">Haftung für Inhalte</h3>
               <p className="text-gray-400 leading-relaxed">
                 Der Autor übernimmt keine Gewähr für die Richtigkeit, Genauigkeit, Aktualität,
-                Zuverlässigkeit und Vollständigkeit der Informationen.
+                Zuverlässigkeit und Vollständigkeit der Informationen auf dieser Website.
               </p>
               <p className="text-gray-400 leading-relaxed mt-4">
                 Haftungsansprüche gegen den Autor wegen Schäden materieller oder immaterieller Art,
@@ -71,15 +90,75 @@ export default function Impressum() {
                 Informationen, durch Missbrauch der Verbindung oder durch technische Störungen
                 entstanden sind, werden ausgeschlossen.
               </p>
+
+              <h3 className="text-lg font-medium text-white mt-6 mb-3">Haftung für Links</h3>
+              <p className="text-gray-400 leading-relaxed">
+                Verweise und Links auf Websites Dritter liegen ausserhalb unseres Verantwortungsbereichs.
+                Es wird jegliche Verantwortung für solche Websites abgelehnt. Der Zugriff und die Nutzung
+                solcher Websites erfolgen auf eigene Gefahr des Nutzers.
+              </p>
+
+              <h3 className="text-lg font-medium text-white mt-6 mb-3">Haftung für Chatbot-Antworten</h3>
+              <p className="text-gray-400 leading-relaxed">
+                Die von unseren Chatbot-Systemen generierten Antworten dienen ausschliesslich zu
+                Informationszwecken. Sie stellen keine rechtliche, medizinische oder sonstige
+                professionelle Beratung dar. Für die Richtigkeit und Vollständigkeit der automatisch
+                generierten Antworten übernehmen wir keine Gewähr. Im Zweifelsfall ist stets eine
+                Fachperson zu konsultieren.
+              </p>
             </section>
 
             <section>
               <h2 className="text-xl font-semibold text-white mb-4">Urheberrechte</h2>
               <p className="text-gray-400 leading-relaxed">
-                Die Urheber- und alle anderen Rechte an Inhalten, Bildern, Fotos oder anderen
-                Dateien auf dieser Website gehören ausschliesslich ChatBot Studio oder den
-                speziell genannten Rechteinhabern. Für die Reproduktion jeglicher Elemente
-                ist die schriftliche Zustimmung des Urheberrechtsträgers im Voraus einzuholen.
+                Die Urheber- und alle anderen Rechte an Inhalten, Bildern, Fotos, Software oder anderen
+                Dateien auf dieser Website gehören ausschliesslich ChatBot Studio oder den speziell
+                genannten Rechteinhabern.
+              </p>
+              <p className="text-gray-400 leading-relaxed mt-4">
+                Für die Reproduktion jeglicher Elemente ist die schriftliche Zustimmung des
+                Urheberrechtsträgers im Voraus einzuholen. Jede unerlaubte Nutzung kann zivil- und
+                strafrechtliche Folgen haben.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-xl font-semibold text-white mb-4">Datenschutz</h2>
+              <p className="text-gray-400 leading-relaxed">
+                Informationen zur Verarbeitung personenbezogener Daten finden Sie in unserer{' '}
+                <a href="/datenschutz" className="text-indigo-400 hover:text-indigo-300">Datenschutzerklärung</a>.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-xl font-semibold text-white mb-4">Streitbeilegung</h2>
+              <p className="text-gray-400 leading-relaxed">
+                Die Europäische Kommission stellt eine Plattform zur Online-Streitbeilegung (OS) bereit:{' '}
+                <a
+                  href="https://ec.europa.eu/consumers/odr/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-indigo-400 hover:text-indigo-300"
+                >
+                  https://ec.europa.eu/consumers/odr/
+                </a>
+              </p>
+              <p className="text-gray-400 leading-relaxed mt-4">
+                Wir sind nicht bereit oder verpflichtet, an Streitbeilegungsverfahren vor einer
+                Verbraucherschlichtungsstelle teilzunehmen.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-xl font-semibold text-white mb-4">Anwendbares Recht und Gerichtsstand</h2>
+              <p className="text-gray-400 leading-relaxed">
+                Für sämtliche Rechtsbeziehungen zwischen ChatBot Studio und den Nutzern gilt
+                ausschliesslich schweizerisches Recht unter Ausschluss des Kollisionsrechts und
+                des UN-Kaufrechts.
+              </p>
+              <p className="text-gray-400 leading-relaxed mt-4">
+                Ausschliesslicher Gerichtsstand ist der Sitz von ChatBot Studio in der Schweiz,
+                soweit gesetzlich zulässig.
               </p>
             </section>
 
