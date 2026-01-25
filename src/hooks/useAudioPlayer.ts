@@ -11,6 +11,44 @@ export interface AudioPlayerResult {
   stop: () => void
   progress: number // 0-1
   error: string | null
+  unlockAudio: () => Promise<void> // Call on user interaction to unlock iOS audio
+}
+
+// Shared audio context for iOS unlock
+let audioUnlocked = false
+let sharedAudioElement: HTMLAudioElement | null = null
+
+// Unlock audio playback on iOS - must be called from a user gesture
+export async function unlockIOSAudio(): Promise<void> {
+  if (audioUnlocked) {
+    console.log('[AudioPlayer] Audio already unlocked')
+    return
+  }
+
+  console.log('[AudioPlayer] Attempting to unlock iOS audio...')
+
+  try {
+    // Create a shared audio element if it doesn't exist
+    if (!sharedAudioElement) {
+      sharedAudioElement = new Audio()
+      sharedAudioElement.setAttribute('playsinline', 'true')
+      sharedAudioElement.setAttribute('webkit-playsinline', 'true')
+    }
+
+    // Play a tiny silent audio to unlock
+    // This is a minimal valid MP3 file (silence)
+    const silentMp3 = 'data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAABhgC7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAAYYoRwmHAAAAAAD/+1DEAAAGAAGn9AAAIiXGq/zRABP/yD/+Tv/5O//yn/+hH/60f/oiGP2TD/9EP/0NDQ0NDQ0NDb//6Ghv/Q0ND/9CH/0Pt//9Df//b////+hv/6H////2P//////+3///9v////////+7////d/////+7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7v/7UMQeAPAAADSAAAAAgAADSAAAAEu7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7'
+
+    sharedAudioElement.src = silentMp3
+    await sharedAudioElement.play()
+    sharedAudioElement.pause()
+    sharedAudioElement.currentTime = 0
+
+    audioUnlocked = true
+    console.log('[AudioPlayer] iOS audio unlocked successfully')
+  } catch (e) {
+    console.warn('[AudioPlayer] Failed to unlock iOS audio:', e)
+  }
 }
 
 export function useAudioPlayer(onPlaybackEnded?: () => void): AudioPlayerResult {
@@ -46,6 +84,8 @@ export function useAudioPlayer(onPlaybackEnded?: () => void): AudioPlayerResult 
       setError(null)
       setState('loading')
 
+      console.log('[AudioPlayer] Playing blob, size:', blob.size, 'type:', blob.type)
+
       try {
         const url = URL.createObjectURL(blob)
         urlRef.current = url
@@ -61,12 +101,16 @@ export function useAudioPlayer(onPlaybackEnded?: () => void): AudioPlayerResult 
         // Use canplaythrough for better iOS compatibility
         const playPromise = new Promise<void>((resolve, reject) => {
           audio.oncanplaythrough = () => {
+            console.log('[AudioPlayer] Audio ready, attempting play...')
             setState('playing')
             // Play immediately when ready - this works better on iOS
             audio.play()
-              .then(resolve)
+              .then(() => {
+                console.log('[AudioPlayer] Playback started successfully')
+                resolve()
+              })
               .catch((playError) => {
-                console.warn('Autoplay blocked:', playError)
+                console.warn('[AudioPlayer] Autoplay blocked:', playError)
                 // On iOS, autoplay might be blocked - notify user
                 setError('Tippen Sie zum Abspielen')
                 setState('idle')
@@ -77,7 +121,8 @@ export function useAudioPlayer(onPlaybackEnded?: () => void): AudioPlayerResult 
               })
           }
 
-          audio.onerror = () => {
+          audio.onerror = (e) => {
+            console.error('[AudioPlayer] Audio load error:', e)
             setError('Audio konnte nicht geladen werden')
             setState('idle')
             reject(new Error('Audio load error'))
@@ -91,6 +136,7 @@ export function useAudioPlayer(onPlaybackEnded?: () => void): AudioPlayerResult 
         }
 
         audio.onended = () => {
+          console.log('[AudioPlayer] Playback ended')
           setState('idle')
           setProgress(1)
           // Notify when playback ends (for voice conversation mode)
@@ -107,6 +153,11 @@ export function useAudioPlayer(onPlaybackEnded?: () => void): AudioPlayerResult 
     },
     [cleanup]
   )
+
+  // Function to unlock audio on iOS - should be called on user tap
+  const unlockAudio = useCallback(async () => {
+    await unlockIOSAudio()
+  }, [])
 
   const play = useCallback(
     async (audioData: string, contentType: string) => {
@@ -157,5 +208,6 @@ export function useAudioPlayer(onPlaybackEnded?: () => void): AudioPlayerResult 
     stop,
     progress,
     error,
+    unlockAudio,
   }
 }
