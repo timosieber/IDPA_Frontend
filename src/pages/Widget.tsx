@@ -575,7 +575,7 @@ export default function Widget() {
     >
       <div
         className="h-full flex flex-col"
-        style={{ paddingBottom: 'env(safe-area-inset-bottom)', paddingTop: 'env(safe-area-inset-top)' }}
+        style={{ paddingTop: 'env(safe-area-inset-top)' }}
       >
         {/* Minimal Header */}
         <header className="px-4 py-2.5 border-b border-gray-100 bg-white">
@@ -772,8 +772,8 @@ export default function Widget() {
         {/* Input Area - Clean & Minimal */}
         <form
           onSubmit={onSend}
-          className="px-4 py-3 bg-white border-t border-gray-100"
-          style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}
+          className="px-4 pt-3 bg-white border-t border-gray-100 flex-shrink-0"
+          style={{ paddingBottom: 'max(16px, calc(env(safe-area-inset-bottom) + 8px))' }}
         >
           <div className="flex items-center gap-2">
             {/* Voice toggle */}
