@@ -208,25 +208,36 @@ export function useVoiceRecorder(onAutoSend?: () => void): VoiceRecorderResult {
       updateAudioLevel()
 
       // Determine best supported MIME type for the platform
-      // Safari/iOS doesn't support WebM, use mp4 or fallback
-      let mimeType = 'audio/webm;codecs=opus'
+      // Safari reports webm as supported but produces empty data - always use mp4 on Safari
+      const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent) ||
+                       /iPad|iPhone|iPod/.test(navigator.userAgent)
+
+      console.log('[VoiceRecorder] Browser detection - isSafari:', isSafari, 'userAgent:', navigator.userAgent)
       console.log('[VoiceRecorder] Checking MIME type support...')
       console.log('[VoiceRecorder] audio/webm;codecs=opus:', MediaRecorder.isTypeSupported('audio/webm;codecs=opus'))
       console.log('[VoiceRecorder] audio/webm:', MediaRecorder.isTypeSupported('audio/webm'))
       console.log('[VoiceRecorder] audio/mp4:', MediaRecorder.isTypeSupported('audio/mp4'))
       console.log('[VoiceRecorder] audio/aac:', MediaRecorder.isTypeSupported('audio/aac'))
 
-      if (!MediaRecorder.isTypeSupported(mimeType)) {
-        mimeType = 'audio/webm'
+      let mimeType = ''
+
+      if (isSafari) {
+        // Safari: prefer mp4, it's the only format that actually works
+        if (MediaRecorder.isTypeSupported('audio/mp4')) {
+          mimeType = 'audio/mp4'
+        }
+        // If mp4 not supported, let browser choose default
+      } else {
+        // Non-Safari: prefer webm/opus
+        if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+          mimeType = 'audio/webm;codecs=opus'
+        } else if (MediaRecorder.isTypeSupported('audio/webm')) {
+          mimeType = 'audio/webm'
+        } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+          mimeType = 'audio/mp4'
+        }
       }
-      if (!MediaRecorder.isTypeSupported(mimeType)) {
-        // Safari/iOS fallback
-        mimeType = 'audio/mp4'
-      }
-      if (!MediaRecorder.isTypeSupported(mimeType)) {
-        // Last resort fallback
-        mimeType = ''  // Let browser choose default
-      }
+
       console.log('[VoiceRecorder] Selected MIME type:', mimeType || '(browser default)')
 
       const recorderOptions: MediaRecorderOptions = {
