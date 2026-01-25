@@ -58,13 +58,20 @@ export function useVoiceRecorder(onAutoSend?: () => void): VoiceRecorderResult {
     setAudioLevel(0)
   }, [])
 
+  // Debug logging counter to avoid spamming console
+  const logCounterRef = useRef(0)
+
   const updateAudioLevel = useCallback(() => {
-    if (!analyserRef.current || !audioContextRef.current) return
+    if (!analyserRef.current || !audioContextRef.current) {
+      console.warn('[VoiceRecorder] No analyser or audioContext')
+      return
+    }
 
     // Check if AudioContext is running (important for iOS)
     if (audioContextRef.current.state !== 'running') {
+      console.log('[VoiceRecorder] AudioContext state:', audioContextRef.current.state, '- trying to resume')
       // Try to resume if suspended
-      audioContextRef.current.resume().catch(() => {})
+      audioContextRef.current.resume().catch((e) => console.error('[VoiceRecorder] Resume failed:', e))
       animationRef.current = requestAnimationFrame(updateAudioLevel)
       return
     }
@@ -76,9 +83,11 @@ export function useVoiceRecorder(onAutoSend?: () => void): VoiceRecorderResult {
     const frequencyData = new Uint8Array(bufferLength)
     analyser.getByteFrequencyData(frequencyData)
     let average = frequencyData.reduce((a, b) => a + b, 0) / bufferLength
+    let usedFallback = false
 
     // If frequency data is all zeros (iOS issue), use time domain data
     if (average === 0) {
+      usedFallback = true
       const timeDomainData = new Uint8Array(bufferLength)
       analyser.getByteTimeDomainData(timeDomainData)
       // Time domain data centers around 128, calculate deviation
@@ -92,6 +101,12 @@ export function useVoiceRecorder(onAutoSend?: () => void): VoiceRecorderResult {
 
     const level = Math.min(1, average / 128)
     setAudioLevel(level)
+
+    // Log every 30 frames (~0.5 sec) to avoid spam
+    logCounterRef.current++
+    if (logCounterRef.current % 30 === 0) {
+      console.log('[VoiceRecorder] Audio level:', level.toFixed(3), usedFallback ? '(timeDomain fallback)' : '(frequency)', 'avg:', average.toFixed(1))
+    }
 
     // Auto-send on silence detection
     const now = Date.now()
@@ -122,8 +137,12 @@ export function useVoiceRecorder(onAutoSend?: () => void): VoiceRecorderResult {
   const startRecording = useCallback(async () => {
     setError(null)
     setState('recording')
+    logCounterRef.current = 0
+
+    console.log('[VoiceRecorder] Starting recording...')
 
     try {
+      console.log('[VoiceRecorder] Requesting microphone access...')
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: true,
@@ -132,24 +151,31 @@ export function useVoiceRecorder(onAutoSend?: () => void): VoiceRecorderResult {
         },
       })
       streamRef.current = stream
+      console.log('[VoiceRecorder] Microphone access granted, tracks:', stream.getAudioTracks().length)
 
       // Set up audio analyser for level visualization
       // Use webkitAudioContext for iOS Safari compatibility
       const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
+      console.log('[VoiceRecorder] AudioContext class:', AudioContextClass.name || 'AudioContext')
       const audioContext = new AudioContextClass()
       audioContextRef.current = audioContext
+      console.log('[VoiceRecorder] AudioContext created, initial state:', audioContext.state, 'sampleRate:', audioContext.sampleRate)
 
       // iOS Safari requires explicit resume after user interaction
       // Wait until it's actually running
       if (audioContext.state === 'suspended') {
+        console.log('[VoiceRecorder] AudioContext suspended, calling resume()...')
         await audioContext.resume()
+        console.log('[VoiceRecorder] After resume(), state:', audioContext.state)
       }
 
       // Double-check and wait for running state (iOS sometimes needs this)
       if (audioContext.state !== 'running') {
+        console.log('[VoiceRecorder] AudioContext still not running, waiting...')
         await new Promise<void>((resolve) => {
           const checkState = () => {
             if (audioContext.state === 'running') {
+              console.log('[VoiceRecorder] AudioContext now running')
               resolve()
             } else {
               audioContext.resume().then(() => {
@@ -158,7 +184,10 @@ export function useVoiceRecorder(onAutoSend?: () => void): VoiceRecorderResult {
             }
           }
           // Timeout after 500ms
-          setTimeout(resolve, 500)
+          setTimeout(() => {
+            console.log('[VoiceRecorder] Timeout waiting for AudioContext, state:', audioContext.state)
+            resolve()
+          }, 500)
           checkState()
         })
       }
@@ -172,12 +201,21 @@ export function useVoiceRecorder(onAutoSend?: () => void): VoiceRecorderResult {
       recordingStartRef.current = Date.now()
       silenceStartRef.current = null
 
+      console.log('[VoiceRecorder] Analyser setup complete, fftSize:', analyser.fftSize, 'frequencyBinCount:', analyser.frequencyBinCount)
+
       // Start audio level updates
+      console.log('[VoiceRecorder] Starting audio level updates...')
       updateAudioLevel()
 
       // Determine best supported MIME type for the platform
       // Safari/iOS doesn't support WebM, use mp4 or fallback
       let mimeType = 'audio/webm;codecs=opus'
+      console.log('[VoiceRecorder] Checking MIME type support...')
+      console.log('[VoiceRecorder] audio/webm;codecs=opus:', MediaRecorder.isTypeSupported('audio/webm;codecs=opus'))
+      console.log('[VoiceRecorder] audio/webm:', MediaRecorder.isTypeSupported('audio/webm'))
+      console.log('[VoiceRecorder] audio/mp4:', MediaRecorder.isTypeSupported('audio/mp4'))
+      console.log('[VoiceRecorder] audio/aac:', MediaRecorder.isTypeSupported('audio/aac'))
+
       if (!MediaRecorder.isTypeSupported(mimeType)) {
         mimeType = 'audio/webm'
       }
@@ -189,6 +227,7 @@ export function useVoiceRecorder(onAutoSend?: () => void): VoiceRecorderResult {
         // Last resort fallback
         mimeType = ''  // Let browser choose default
       }
+      console.log('[VoiceRecorder] Selected MIME type:', mimeType || '(browser default)')
 
       const recorderOptions: MediaRecorderOptions = {
         audioBitsPerSecond: 128000, // 128kbps - forces fresh encoding
@@ -200,8 +239,10 @@ export function useVoiceRecorder(onAutoSend?: () => void): VoiceRecorderResult {
       const mediaRecorder = new MediaRecorder(stream, recorderOptions)
       mediaRecorderRef.current = mediaRecorder
       chunksRef.current = []
+      console.log('[VoiceRecorder] MediaRecorder created, actual mimeType:', mediaRecorder.mimeType)
 
       mediaRecorder.ondataavailable = (event) => {
+        console.log('[VoiceRecorder] Data available, size:', event.data.size)
         if (event.data.size > 0) {
           chunksRef.current.push(event.data)
         }
@@ -210,7 +251,9 @@ export function useVoiceRecorder(onAutoSend?: () => void): VoiceRecorderResult {
       // Start with a large timeslice to get data periodically but maintain container integrity
       // This ensures we get proper EBML headers while not waiting forever
       mediaRecorder.start(30000) // Get data every 30 seconds max
+      console.log('[VoiceRecorder] MediaRecorder started, state:', mediaRecorder.state)
     } catch (err) {
+      console.error('[VoiceRecorder] Error starting recording:', err)
       cleanup()
       setState('idle')
 
